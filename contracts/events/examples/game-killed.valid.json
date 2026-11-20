@@ -1,0 +1,17 @@
+{
+  "eventId": "00000000-0000-4000-8000-000000000008",
+  "eventType": "GameKilled",
+  "schemaVersion": 1,
+  "occurredAt": "2026-11-20T10:15:30.120Z",
+  "producer": "dealer",
+  "operatorCode": null,
+  "partitionKey": "jungle-reels",
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {
+    "gameCode": "jungle-reels",
+    "buildVersion": "1.5.0-rc.1",
+    "reason": "payout bug reported by studio",
+    "activatedBy": "oncall-dealer",
+    "activatedAt": "2026-11-20T11:00:00Z"
+  }
+}

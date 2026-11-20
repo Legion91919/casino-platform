@@ -1,0 +1,130 @@
+name: ci
+
+# Path-filtered CI for the monorepo (ADR-0004). One workflow; jobs run only for what changed.
+# - services/<name>/**  -> that service's build/test job (and db-verify if its db/ changed)
+# - contracts/** or services/*/api/** -> contract validation
+# - tools/sql/** or tools/db-verify.sh -> db-verify for every service
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.diff.outputs.services }}
+      db: ${{ steps.diff.outputs.db }}
+      contracts: ${{ steps.diff.outputs.contracts }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        name: Work out what changed
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            files=$(git ls-files)                       # first push: treat everything as changed
+          else
+            files=$(git diff --name-only "$base" "${{ github.sha }}")
+          fi
+          services=$(printf '%s\n' "$files" | sed -n 's#^services/\([^/]*\)/.*#\1#p' | sort -u | jq -R . | jq -sc .)
+          db=false; contracts=false
+          printf '%s\n' "$files" | grep -qE '^(services/[^/]+/db/|tools/sql/|tools/db-verify\.sh)' && db=true
+          printf '%s\n' "$files" | grep -qE '^(contracts/|services/[^/]+/api/|tools/validate-contracts\.py)' && contracts=true
+          echo "services=$services" >> "$GITHUB_OUTPUT"
+          echo "db=$db" >> "$GITHUB_OUTPUT"
+          echo "contracts=$contracts" >> "$GITHUB_OUTPUT"
+
+  db-verify:
+    needs: changes
+    if: needs.changes.outputs.db == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-throwaway
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply every migration and run every DB test (PostgreSQL 16)
+        env:
+          DB_VERIFY_EXTERNAL: "1"
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: ci-only-throwaway
+        run: tools/db-verify.sh
+
+  contracts:
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install jsonschema referencing pyyaml openapi-spec-validator
+      - name: Event schemas, examples, OpenAPI 3.1, ownership
+        run: python3 tools/validate-contracts.py
+
+  service:
+    needs: changes
+    if: needs.changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build and test ${{ matrix.service }} (build wave adds the code)
+        working-directory: services/${{ matrix.service }}
+        run: |
+          if ls *.sln src/*.csproj >/dev/null 2>&1; then
+            dotnet build -c Release -warnaserror
+            dotnet test -c Release --collect:"XPlat Code Coverage"
+          else
+            echo "No code yet for ${{ matrix.service }} (design wave)."
+          fi
+
+  safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Privacy guard (secrets + personal data)
+        run: python3 tools/privacy_guard.py --all
+
+  handover-readiness:
+    if: vars.KIT_REPO != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Install arch-advisor from the kit
+        run: |
+          git clone --depth 1 "https://github.com/${{ vars.KIT_REPO }}" /tmp/kit
+          dotnet pack /tmp/kit/src/ArchAdvisor.Mcp -c Release -o /tmp/nupkg
+          dotnet tool install -g arch-advisor --add-source /tmp/nupkg
+      - name: Handover readiness (min 80%)
+        run: arch-advisor check . --min 80

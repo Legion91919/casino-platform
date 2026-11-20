@@ -1,0 +1,140 @@
+openapi: 3.1.0
+info:
+  title: Countroom API (slice 1)
+  version: 1.0.0
+  summary: Daily GGR/NGR reports, regulator exports, ingestion freshness.
+  description: |
+    Read-only reporting built from Cashier's BetSettled feed (and Comps' bonus events for NGR).
+    Every response states how fresh the data is. Operators only ever see their own rows; compliance
+    staff can export for any operator in a jurisdiction they are assigned to.
+servers:
+  - url: https://countroom.platform.example.test
+security:
+  - operatorMtls: []
+  - staffOidc: [reporting]
+paths:
+  /v1/reports/ggr-daily:
+    get:
+      operationId: getDailyGgr
+      summary: Daily GGR and NGR by operator, jurisdiction and game.
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date }, description: "Inclusive, at most 92 days after from." }
+        - { name: jurisdictionCode, in: query, schema: { type: string } }
+        - { name: gameCode, in: query, schema: { type: string } }
+        - { name: groupBy, in: query, schema: { enum: [day, game, jurisdiction], default: day } }
+      responses:
+        "200":
+          description: Report rows plus freshness.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GgrReport" }
+            text/csv:
+              schema: { type: string }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/exports:
+    post:
+      operationId: requestExport
+      summary: Compliance requests a regulator export; built asynchronously, then sealed with a SHA-256 checksum.
+      security: [ { staffOidc: [compliance] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operatorCode, jurisdictionCode, reportKind, from, to, format]
+              additionalProperties: false
+              properties:
+                operatorCode: { type: string }
+                jurisdictionCode: { type: string }
+                reportKind: { enum: [daily_ggr, monthly_ggr, game_performance, rg_interventions] }
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+                format: { enum: [csv, xml, json] }
+      responses:
+        "202":
+          description: Accepted; poll the export.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Export" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /v1/exports/{exportId}:
+    get:
+      operationId: getExport
+      summary: Export status; when sealed, a short-lived download link and the checksum.
+      security: [ { staffOidc: [compliance] } ]
+      parameters:
+        - { name: exportId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Export
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Export" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /v1/ingestion/status:
+    get:
+      operationId: getIngestionStatus
+      summary: Feed lag per source and the last successful GGR rebuild (drives the freshness SLO).
+      security: [ { staffOidc: [reporting] } ]
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sources:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        source: { type: string }
+                        lagSeconds: { type: integer }
+                        quarantined24h: { type: integer }
+                  lastGgrRebuild: { type: string, format: date-time }
+components:
+  securitySchemes:
+    operatorMtls: { type: mutualTLS }
+    staffOidc:
+      type: openIdConnect
+      openIdConnectUrl: https://sso.platform.example.test/.well-known/openid-configuration
+  responses:
+    Problem:
+      description: Error (RFC 9457).
+      content:
+        application/problem+json:
+          schema: { type: object, required: [type, title, status], properties: { type: { type: string }, title: { type: string }, status: { type: integer }, code: { type: string } } }
+  schemas:
+    GgrRow:
+      type: object
+      required: [businessDate, operatorCode, jurisdictionCode, gameCode, currency, rounds, cashStakeMinor, bonusStakeMinor, winMinor, ggrMinor, ngrMinor]
+      properties:
+        businessDate: { type: string, format: date }
+        operatorCode: { type: string }
+        jurisdictionCode: { type: string }
+        gameCode: { type: string }
+        currency: { type: string }
+        rounds: { type: integer }
+        cashStakeMinor: { type: integer, format: int64 }
+        bonusStakeMinor: { type: integer, format: int64 }
+        winMinor: { type: integer, format: int64 }
+        ggrMinor: { type: integer, format: int64, description: cash stakes minus wins (can be negative). }
+        ngrMinor: { type: integer, format: int64, description: GGR minus bonus cost (before gaming tax). }
+    GgrReport:
+      type: object
+      required: [rows, dataAsOf]
+      properties:
+        rows: { type: array, items: { $ref: "#/components/schemas/GgrRow" } }
+        dataAsOf: { type: string, format: date-time, description: Settlement time of the newest event included. }
+    Export:
+      type: object
+      required: [exportId, status]
+      properties:
+        exportId: { type: integer }
+        status: { enum: [building, sealed, submitted, superseded] }
+        rowCount: { type: integer }
+        contentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        downloadUrl: { type: string, format: uri }

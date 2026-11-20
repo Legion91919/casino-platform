@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/bonus-awarded.v1.schema.json",
+  "title": "BonusAwarded v1",
+  "description": "A bonus was awarded; Cashier has credited the bonus balance (separate from cash).",
+  "x-producer": "comps",
+  "x-partition-key": "playerId",
+  "allOf": [
+    {
+      "$ref": "envelope.v1.schema.json"
+    }
+  ],
+  "properties": {
+    "eventType": {
+      "const": "BonusAwarded"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "const": "comps"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "awardId",
+        "campaignCode",
+        "kind",
+        "playerId",
+        "amount",
+        "wageringRequired",
+        "expiresAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "awardId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "campaignCode": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_]{3,32}$"
+        },
+        "kind": {
+          "enum": [
+            "free_spins",
+            "deposit_match"
+          ]
+        },
+        "playerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-personal-data": "pseudonymous platform player id; never a name, email or document number"
+        },
+        "amount": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "wageringRequired": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "freeSpins": {
+          "type": "object",
+          "required": [
+            "gameCode",
+            "spins",
+            "spinValue"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "gameCode": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+            },
+            "spins": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "spinValue": {
+              "$ref": "envelope.v1.schema.json#/$defs/money"
+            }
+          }
+        }
+      }
+    }
+  }
+}

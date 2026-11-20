@@ -1,0 +1,240 @@
+openapi: 3.1.0
+info:
+  title: Dealer API (slice 1)
+  version: 1.0.0
+  summary: Publish builds, record certification, roll out per operator, launch games, kill switch, event feed.
+  description: |
+    Studios publish immutable builds (manifest + CDN assets). A build can only roll out where it is
+    certified (enforced in the database). Operators request a launch and get a game URL with a random,
+    single-use token valid for at most 5 minutes; the game server redeems it once for a signed
+    game-session token that Cashier verifies locally with Dealer's public keys.
+servers:
+  - url: https://dealer.platform.example.test
+paths:
+  /v1/games/{gameCode}/builds:
+    post:
+      operationId: publishBuild
+      summary: Studio CI publishes a build. Assets must already be uploaded to the content-addressed CDN path.
+      security: [ { studioMtls: [] } ]
+      parameters: [ { $ref: "#/components/parameters/GameCode" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BuildRequest" }
+      responses:
+        "201":
+          description: Build published.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Build" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/builds/{buildId}/certifications:
+    post:
+      operationId: recordCertification
+      summary: Compliance records a lab certificate (or revocation) for a jurisdiction. Revocation pulls rollouts at once.
+      security: [ { staffOidc: [compliance] } ]
+      parameters: [ { $ref: "#/components/parameters/BuildId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jurisdictionCode, status]
+              additionalProperties: false
+              properties:
+                jurisdictionCode: { type: string, pattern: "^JUR-[A-Z0-9]{1,8}$" }
+                status: { enum: [pending, certified, revoked] }
+                certificateRef: { type: string }
+      responses:
+        "200": { description: Recorded. }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/rollouts:
+    post:
+      operationId: createRollout
+      summary: Start or change a percentage rollout of a certified build for one operator and jurisdiction. Emits GameReleased.
+      security: [ { staffOidc: [release] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operatorCode, jurisdictionCode, gameCode, buildId, percentage]
+              additionalProperties: false
+              properties:
+                operatorCode: { type: string }
+                jurisdictionCode: { type: string }
+                gameCode: { type: string }
+                buildId: { type: integer }
+                percentage: { type: integer, minimum: 0, maximum: 100 }
+      responses:
+        "201": { description: Rollout active. }
+        "422":
+          description: NOT_CERTIFIED, OVER_100_PERCENT or BUILD_NOT_PUBLISHED.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /v1/launches:
+    post:
+      operationId: launchGame
+      summary: Operator asks for a game URL for a player. Checks Pitboss status, rollout bucket and kill switches.
+      security: [ { operatorMtls: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [playerId, gameCode, jurisdictionCode, currency, mode]
+              additionalProperties: false
+              properties:
+                playerId: { type: string, format: uuid }
+                gameCode: { type: string }
+                jurisdictionCode: { type: string }
+                currency: { type: string, pattern: "^[A-Z]{3}$" }
+                mode: { enum: [real, demo] }
+                returnUrl: { type: string, format: uri }
+      responses:
+        "201":
+          description: Launch URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [launchUrl, expiresAt, buildVersion]
+                properties:
+                  launchUrl: { type: string, format: uri, description: "CDN entrypoint plus #token=<random 256-bit token>." }
+                  expiresAt: { type: string, format: date-time }
+                  buildVersion: { type: string }
+        "403":
+          description: PLAYER_BLOCKED (from Pitboss), GAME_KILLED or NOT_IN_ROLLOUT.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /v1/launch-sessions/redeem:
+    post:
+      operationId: redeemLaunchToken
+      summary: Game server exchanges the single-use launch token for a signed game-session token.
+      security: [ { studioMtls: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [launchToken]
+              properties:
+                launchToken: { type: string, minLength: 43 }
+      responses:
+        "200":
+          description: Game-session token (JWT, ES256, 12 h max) with operator, player, jurisdiction, currency, game, build.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [gameSessionToken, expiresAt]
+                properties:
+                  gameSessionToken: { type: string }
+                  expiresAt: { type: string, format: date-time }
+        "410": { $ref: "#/components/responses/Problem" }
+  /v1/kill-switches:
+    post:
+      operationId: activateKillSwitch
+      summary: Stop launches of a game, optionally one build and/or one operator. Takes effect within 5 seconds. Emits GameKilled.
+      security: [ { staffOidc: [oncall] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gameCode, reason]
+              additionalProperties: false
+              properties:
+                gameCode: { type: string }
+                buildId: { type: [integer, "null"] }
+                operatorCode: { type: [string, "null"] }
+                reason: { type: string, minLength: 3 }
+      responses:
+        "201": { description: Kill switch active. }
+        "409": { $ref: "#/components/responses/Problem" }
+  /.well-known/jwks.json:
+    get:
+      operationId: getSigningKeys
+      summary: Public keys for verifying game-session tokens (rotated every 30 days, two keys overlap).
+      security: []
+      responses:
+        "200":
+          description: JWK set.
+          content:
+            application/json:
+              schema: { type: object, required: [keys], properties: { keys: { type: array, items: { type: object } } } }
+  /v1/events:
+    get:
+      operationId: readEventFeed
+      summary: Outbox feed (GameReleased, GameKilled).
+      security: [ { serviceMtls: [] } ]
+      parameters:
+        - { name: after, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+      responses:
+        "200":
+          description: Events and next cursor.
+          content:
+            application/json:
+              schema: { type: object, required: [events, next], properties: { events: { type: array, items: { type: object } }, next: { type: string } } }
+components:
+  securitySchemes:
+    studioMtls: { type: mutualTLS }
+    operatorMtls: { type: mutualTLS }
+    serviceMtls: { type: mutualTLS }
+    staffOidc:
+      type: openIdConnect
+      openIdConnectUrl: https://sso.platform.example.test/.well-known/openid-configuration
+  parameters:
+    GameCode: { name: gameCode, in: path, required: true, schema: { type: string, pattern: "^[a-z0-9][a-z0-9-]{1,63}$" } }
+    BuildId: { name: buildId, in: path, required: true, schema: { type: integer } }
+  responses:
+    Problem:
+      description: Error (RFC 9457).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        code: { type: string }
+        detail: { type: string }
+    BuildRequest:
+      type: object
+      required: [version, manifest, manifestSha256, assetBaseUrl, rtpBps]
+      additionalProperties: false
+      properties:
+        version: { type: string, pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$" }
+        manifest:
+          type: object
+          required: [entrypoint, assets]
+          properties:
+            entrypoint: { type: string }
+            assets:
+              type: array
+              items: { type: object, required: [path, sha256], properties: { path: { type: string }, sha256: { type: string, pattern: "^[0-9a-f]{64}$" } } }
+        manifestSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        assetBaseUrl: { type: string, pattern: "^https://" }
+        rtpBps: { type: integer, minimum: 7000, maximum: 10000 }
+    Build:
+      type: object
+      required: [buildId, gameCode, version, status]
+      properties:
+        buildId: { type: integer }
+        gameCode: { type: string }
+        version: { type: string }
+        status: { enum: [draft, published, withdrawn] }

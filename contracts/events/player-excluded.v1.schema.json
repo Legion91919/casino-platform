@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/player-excluded.v1.schema.json",
+  "title": "PlayerExcluded v1",
+  "description": "A player was excluded (cool-off, self-exclusion, operator or regulator). Consumers must stop play, marketing and bonuses.",
+  "x-producer": "pitboss",
+  "x-partition-key": "playerId",
+  "allOf": [
+    {
+      "$ref": "envelope.v1.schema.json"
+    }
+  ],
+  "properties": {
+    "eventType": {
+      "const": "PlayerExcluded"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "const": "pitboss"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "playerId",
+        "jurisdictionCode",
+        "kind",
+        "from",
+        "until"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "playerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-personal-data": "pseudonymous platform player id; never a name, email or document number"
+        },
+        "jurisdictionCode": {
+          "type": "string",
+          "pattern": "^JUR-[A-Z0-9]{1,8}$"
+        },
+        "kind": {
+          "enum": [
+            "cool_off",
+            "self_exclusion",
+            "operator",
+            "regulator"
+          ]
+        },
+        "from": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "until": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "null = indefinite"
+        }
+      }
+    }
+  }
+}

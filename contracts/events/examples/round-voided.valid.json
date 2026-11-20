@@ -1,0 +1,23 @@
+{
+  "eventId": "00000000-0000-4000-8000-000000000003",
+  "eventType": "RoundVoided",
+  "schemaVersion": 1,
+  "occurredAt": "2026-11-20T10:15:30.120Z",
+  "producer": "cashier",
+  "operatorCode": "kestrel",
+  "partitionKey": "r-2",
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {
+    "externalRoundId": "r-2",
+    "gameCode": "jungle-reels",
+    "jurisdictionCode": "JUR-A",
+    "playerId": "00000000-0000-4000-8000-0000000000a1",
+    "priorStatus": "open",
+    "refunded": {
+      "amountMinor": 100,
+      "currency": "EUR"
+    },
+    "reason": "GAME_SERVER_ROLLBACK",
+    "voidedAt": "2026-11-20T10:16:00Z"
+  }
+}

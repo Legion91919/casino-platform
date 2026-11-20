@@ -1,0 +1,30 @@
+# Team ownership (ADR-0004). Branch protection requires a CODEOWNERS review.
+# The organisation and team handles are invented placeholders.
+# Later rules win, so the most specific paths come last.
+
+*                                   @casino-platform-example/team-backstage
+
+/services/cashier/                  @casino-platform-example/team-cashier
+/services/pitboss/                  @casino-platform-example/team-pitboss
+/services/dealer/                   @casino-platform-example/team-dealer
+/services/comps/                    @casino-platform-example/team-comps
+/services/countroom/                @casino-platform-example/team-countroom
+/services/backstage/                @casino-platform-example/team-backstage
+
+# Tier-0 migrations: owning team (branch protection requires two approvals on these paths)
+/services/cashier/db/migrations/    @casino-platform-example/team-cashier
+/services/pitboss/db/migrations/    @casino-platform-example/team-pitboss
+
+# Event contracts: producer team + platform team (consumers listed in contracts/README.md are added as reviewers by the PR bot)
+/contracts/                                         @casino-platform-example/team-backstage
+/contracts/events/bet-*.schema.json                 @casino-platform-example/team-cashier @casino-platform-example/team-backstage
+/contracts/events/round-voided.v*.schema.json       @casino-platform-example/team-cashier @casino-platform-example/team-backstage
+/contracts/events/settlement-reversed.v*.schema.json @casino-platform-example/team-cashier @casino-platform-example/team-backstage
+/contracts/events/limit-breached.v*.schema.json     @casino-platform-example/team-pitboss @casino-platform-example/team-backstage
+/contracts/events/player-excluded.v*.schema.json    @casino-platform-example/team-pitboss @casino-platform-example/team-backstage
+/contracts/events/game-*.schema.json                @casino-platform-example/team-dealer @casino-platform-example/team-backstage
+/contracts/events/bonus-*.schema.json               @casino-platform-example/team-comps @casino-platform-example/team-backstage
+
+# Suite decisions need every team lead (via the architecture group team)
+/.agentic/decisions/                @casino-platform-example/architecture-group
+/tools/                             @casino-platform-example/team-backstage

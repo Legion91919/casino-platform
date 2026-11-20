@@ -1,0 +1,26 @@
+{
+  "eventId": "00000000-0000-4000-8000-000000000005",
+  "eventType": "LimitBreached",
+  "schemaVersion": 1,
+  "occurredAt": "2026-11-20T10:15:30.120Z",
+  "producer": "pitboss",
+  "operatorCode": "kestrel",
+  "partitionKey": "00000000-0000-4000-8000-0000000000a1",
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {
+    "playerId": "00000000-0000-4000-8000-0000000000a1",
+    "jurisdictionCode": "JUR-A",
+    "limitType": "loss",
+    "period": "day",
+    "limit": {
+      "amountMinor": 5000,
+      "currency": "EUR"
+    },
+    "attempted": {
+      "amountMinor": 250,
+      "currency": "EUR"
+    },
+    "action": "STAKE_DENIED",
+    "occurredAt": "2026-11-20T10:20:00Z"
+  }
+}

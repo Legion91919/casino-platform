@@ -1,0 +1,24 @@
+{
+  "eventId": "00000000-0000-4000-8000-000000000004",
+  "eventType": "SettlementReversed",
+  "schemaVersion": 1,
+  "occurredAt": "2026-11-20T10:15:30.120Z",
+  "producer": "cashier",
+  "operatorCode": "kestrel",
+  "partitionKey": "r-1",
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {
+    "externalRoundId": "r-1",
+    "gameCode": "jungle-reels",
+    "playerId": "00000000-0000-4000-8000-0000000000a1",
+    "reversedTxnId": "gs-101",
+    "reversingTxnId": "gs-101-rev",
+    "amount": {
+      "amountMinor": 600,
+      "currency": "EUR"
+    },
+    "reason": "MALFUNCTION",
+    "actor": "ops-17",
+    "reversedAt": "2026-11-20T12:00:00Z"
+  }
+}

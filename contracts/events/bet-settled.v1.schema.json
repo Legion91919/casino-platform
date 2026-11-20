@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/bet-settled.v1.schema.json",
+  "title": "BetSettled v1",
+  "description": "A round closed: total stakes and wins are final unless a later RoundVoided or SettlementReversed says otherwise.",
+  "x-producer": "cashier",
+  "x-partition-key": "externalRoundId",
+  "allOf": [
+    {
+      "$ref": "envelope.v1.schema.json"
+    }
+  ],
+  "properties": {
+    "eventType": {
+      "const": "BetSettled"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "const": "cashier"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "externalRoundId",
+        "gameCode",
+        "studioCode",
+        "gameCategory",
+        "jurisdictionCode",
+        "playerId",
+        "businessDate",
+        "cashStake",
+        "bonusStake",
+        "win",
+        "settledAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "externalRoundId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "gameCode": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+        },
+        "studioCode": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+        },
+        "jurisdictionCode": {
+          "type": "string",
+          "pattern": "^JUR-[A-Z0-9]{1,8}$"
+        },
+        "playerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-personal-data": "pseudonymous platform player id; never a name, email or document number"
+        },
+        "gameCategory": {
+          "enum": [
+            "slot",
+            "table",
+            "live",
+            "instant",
+            "crash"
+          ]
+        },
+        "businessDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Jurisdiction trading day; Countroom partitions on it."
+        },
+        "cashStake": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "bonusStake": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "win": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "bonusAwardId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "settledAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

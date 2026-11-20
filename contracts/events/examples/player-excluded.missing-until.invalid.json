@@ -1,0 +1,16 @@
+{
+  "eventId": "00000000-0000-4000-8000-000000000006",
+  "eventType": "PlayerExcluded",
+  "schemaVersion": 1,
+  "occurredAt": "2026-11-20T10:15:30.120Z",
+  "producer": "pitboss",
+  "operatorCode": "kestrel",
+  "partitionKey": "00000000-0000-4000-8000-0000000000a1",
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {
+    "playerId": "00000000-0000-4000-8000-0000000000a1",
+    "jurisdictionCode": "JUR-A",
+    "kind": "self_exclusion",
+    "from": "2026-11-20T10:30:00Z"
+  }
+}

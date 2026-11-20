@@ -1,0 +1,25 @@
+{
+  "eventId": "00000000-0000-4000-8000-000000000009",
+  "eventType": "BonusAwarded",
+  "schemaVersion": 1,
+  "occurredAt": "2026-11-20T10:15:30.120Z",
+  "producer": "comps",
+  "operatorCode": "kestrel",
+  "partitionKey": "00000000-0000-4000-8000-0000000000a1",
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {
+    "awardId": "00000000-0000-4000-8000-00000000aa01",
+    "campaignCode": "WELCOME100",
+    "kind": "deposit_match",
+    "playerId": "00000000-0000-4000-8000-0000000000a1",
+    "amount": {
+      "amountMinor": 2000,
+      "currency": "EUR"
+    },
+    "wageringRequired": {
+      "amountMinor": 60000,
+      "currency": "EUR"
+    },
+    "expiresAt": "2026-12-20T10:00:00Z"
+  }
+}

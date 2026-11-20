@@ -1,0 +1,137 @@
+openapi: 3.1.0
+info:
+  title: Comps API (slice 1)
+  version: 1.0.0
+  summary: Campaigns, idempotent bonus awards, player bonus view, event feed.
+  description: |
+    Comps owns bonus rules and award state. The bonus money sits in a separate player_bonus account in
+    Cashier: Comps calls Cashier POST /v1/bonus-credits (keyed by awardId + operation) to credit,
+    convert or forfeit it. Wagering progress comes from Cashier's BetSettled events, counted once per
+    event and weighted by game category.
+servers:
+  - url: https://comps.platform.example.test
+security:
+  - operatorMtls: []
+paths:
+  /v1/campaigns:
+    post:
+      operationId: createCampaign
+      summary: Operator CRM creates a campaign (deposit match or free spins) for given jurisdictions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Campaign" }
+      responses:
+        "201": { description: Created. }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/awards:
+    post:
+      operationId: awardBonus
+      summary: Award a bonus for a triggering fact (e.g. a deposit). Idempotent on awardKey. Checks Pitboss status first.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [awardKey, campaignCode, playerId]
+              additionalProperties: false
+              properties:
+                awardKey: { type: string, maxLength: 128, description: "Triggering fact, e.g. deposit:<operator deposit id>. Same key, same award." }
+                campaignCode: { type: string, pattern: "^[A-Z0-9_]{3,32}$" }
+                playerId: { type: string, format: uuid }
+                qualifyingAmount: { $ref: "#/components/schemas/Money" }
+      responses:
+        "201":
+          description: Awarded (bonus credited in Cashier, BonusAwarded emitted).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Award" }
+        "200":
+          description: Replay of an existing award for the same awardKey.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Award" }
+        "422":
+          description: PLAYER_BLOCKED, CAMPAIGN_INACTIVE, NOT_ELIGIBLE_IN_JURISDICTION, ALREADY_ACTIVE.
+          content:
+            application/problem+json:
+              schema: { type: object }
+  /v1/players/{playerId}/awards:
+    get:
+      operationId: listPlayerAwards
+      summary: Active and recent awards with wagering progress (for the operator's player UI).
+      parameters:
+        - { name: playerId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Awards
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Award" } }
+  /v1/events:
+    get:
+      operationId: readEventFeed
+      summary: Outbox feed (BonusAwarded, BonusCompleted, BonusExpired).
+      security: [ { serviceMtls: [] } ]
+      parameters:
+        - { name: after, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+      responses:
+        "200":
+          description: Events and next cursor.
+          content:
+            application/json:
+              schema: { type: object, required: [events, next], properties: { events: { type: array, items: { type: object } }, next: { type: string } } }
+components:
+  securitySchemes:
+    operatorMtls: { type: mutualTLS }
+    serviceMtls: { type: mutualTLS }
+  responses:
+    Problem:
+      description: Error (RFC 9457).
+      content:
+        application/problem+json:
+          schema: { type: object, required: [type, title, status], properties: { type: { type: string }, title: { type: string }, status: { type: integer }, code: { type: string } } }
+  schemas:
+    Money:
+      type: object
+      required: [amountMinor, currency]
+      additionalProperties: false
+      properties:
+        amountMinor: { type: integer, format: int64, minimum: 0 }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+    Campaign:
+      type: object
+      required: [code, kind, currency, maxAward, wageringMultiplier, awardTtlDays, validFrom, validTo, jurisdictions]
+      additionalProperties: false
+      properties:
+        code: { type: string, pattern: "^[A-Z0-9_]{3,32}$" }
+        kind: { enum: [free_spins, deposit_match] }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        matchPct: { type: integer, minimum: 1, maximum: 200 }
+        maxAward: { $ref: "#/components/schemas/Money" }
+        wageringMultiplier: { type: integer, minimum: 0, maximum: 60 }
+        awardTtlDays: { type: integer, minimum: 1, maximum: 90 }
+        validFrom: { type: string, format: date-time }
+        validTo: { type: string, format: date-time }
+        jurisdictions: { type: array, minItems: 1, items: { type: string, pattern: "^JUR-[A-Z0-9]{1,8}$" } }
+        freeSpins:
+          type: object
+          properties:
+            gameCode: { type: string }
+            spins: { type: integer, minimum: 1, maximum: 500 }
+            spinValue: { $ref: "#/components/schemas/Money" }
+    Award:
+      type: object
+      required: [awardId, status, awarded, wageringRequired, wageringProgress, expiresAt]
+      properties:
+        awardId: { type: string, format: uuid }
+        campaignCode: { type: string }
+        status: { enum: [active, completed, expired, forfeited] }
+        awarded: { $ref: "#/components/schemas/Money" }
+        wageringRequired: { $ref: "#/components/schemas/Money" }
+        wageringProgress: { $ref: "#/components/schemas/Money" }
+        expiresAt: { type: string, format: date-time }

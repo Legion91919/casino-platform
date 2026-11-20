@@ -1,0 +1,218 @@
+openapi: 3.1.0
+info:
+  title: Pitboss API (slice 1)
+  version: 1.0.0
+  summary: Player registration, responsible-gambling limits and exclusions, stake authorisation, event feed.
+  description: |
+    Pitboss decides whether a player may stake. Cashier calls POST /v1/stake-authorizations before every
+    stake (p99 budget 50 ms, Cashier times out at 150 ms and fails closed). Every write is audited in the
+    hash-chained audit log. The tenant comes from the caller's mTLS identity and is enforced by row-level
+    security in the database.
+servers:
+  - url: https://pitboss.platform.example.test
+security:
+  - operatorMtls: []
+paths:
+  /v1/players:
+    post:
+      operationId: registerPlayer
+      summary: Operator registers (or updates) a player with jurisdiction and KYC outcome. Idempotent on operatorPlayerRef.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlayerRegistration" }
+      responses:
+        "200":
+          description: Registered or unchanged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlayerStatus" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/players/{playerId}/status:
+    get:
+      operationId: getPlayerStatus
+      summary: Can this player play right now, and why not?
+      parameters: [ { $ref: "#/components/parameters/PlayerId" } ]
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlayerStatus" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /v1/players/{playerId}/limits:
+    post:
+      operationId: setLimit
+      summary: Set a limit. Lower limits apply now; higher limits apply after the jurisdiction's delay.
+      parameters: [ { $ref: "#/components/parameters/PlayerId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LimitRequest" }
+      responses:
+        "201":
+          description: Limit recorded, with the moment it takes effect.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Limit" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/players/{playerId}/exclusions:
+    post:
+      operationId: excludePlayer
+      summary: Start a cool-off or self-exclusion. Cannot be shortened or cancelled. Emits PlayerExcluded.
+      parameters: [ { $ref: "#/components/parameters/PlayerId" } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExclusionRequest" }
+      responses:
+        "201":
+          description: Exclusion in force.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Exclusion" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/stake-authorizations:
+    post:
+      operationId: authorizeStake
+      summary: Called by Cashier before accepting a stake. Idempotent on (operator, gameServerTxnId).
+      security:
+        - serviceMtls: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StakeAuthorizationRequest" }
+      responses:
+        "200":
+          description: Decision (approved or denied with a reason). A replay returns the original decision.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StakeAuthorization" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /v1/events:
+    get:
+      operationId: readEventFeed
+      summary: Outbox feed (LimitBreached, PlayerExcluded).
+      security:
+        - serviceMtls: []
+      parameters:
+        - { name: after, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+      responses:
+        "200":
+          description: Events in commit order and the next cursor.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events, next]
+                properties:
+                  events: { type: array, items: { type: object } }
+                  next: { type: string }
+components:
+  securitySchemes:
+    operatorMtls: { type: mutualTLS }
+    serviceMtls: { type: mutualTLS }
+  parameters:
+    PlayerId:
+      name: playerId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Problem:
+      description: Error (RFC 9457).
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            required: [type, title, status]
+            properties:
+              type: { type: string }
+              title: { type: string }
+              status: { type: integer }
+              code: { type: string }
+              detail: { type: string }
+  schemas:
+    Money:
+      type: object
+      required: [amountMinor, currency]
+      additionalProperties: false
+      properties:
+        amountMinor: { type: integer, format: int64, minimum: 0 }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+    PlayerRegistration:
+      type: object
+      required: [operatorPlayerRef, jurisdictionCode, kycStatus, ageVerified]
+      additionalProperties: false
+      properties:
+        operatorPlayerRef: { type: string, maxLength: 64, description: The operator's own player id. Names and documents stay with the operator. }
+        jurisdictionCode: { type: string, pattern: "^JUR-[A-Z0-9]{1,8}$" }
+        kycStatus: { enum: [unverified, pending, verified, rejected, expired] }
+        ageVerified: { type: boolean }
+        dateOfBirth: { type: string, format: date, description: Encrypted at rest by the application; used only for age rules. }
+    PlayerStatus:
+      type: object
+      required: [playerId, canPlay]
+      properties:
+        playerId: { type: string, format: uuid }
+        canPlay: { type: boolean }
+        blockReason: { enum: [NOT_VERIFIED, EXCLUDED, COOL_OFF, null] }
+        blockedUntil: { type: [string, "null"], format: date-time }
+        realityCheckEveryMinutes: { type: integer }
+    LimitRequest:
+      type: object
+      required: [limitType, period, setBy]
+      additionalProperties: false
+      properties:
+        limitType: { enum: [deposit, loss, wager, session_time] }
+        period: { enum: [session, day, week, month] }
+        amount: { $ref: "#/components/schemas/Money" }
+        minutes: { type: integer, minimum: 5, maximum: 1440 }
+        setBy: { enum: [player, operator, regulator] }
+    Limit:
+      allOf:
+        - $ref: "#/components/schemas/LimitRequest"
+        - type: object
+          required: [limitId, effectiveFrom]
+          properties:
+            limitId: { type: integer }
+            effectiveFrom: { type: string, format: date-time }
+    ExclusionRequest:
+      type: object
+      required: [kind, durationDays, reason]
+      additionalProperties: false
+      properties:
+        kind: { enum: [cool_off, self_exclusion, operator, regulator] }
+        durationDays: { type: [integer, "null"], minimum: 1, description: null = indefinite (self-exclusion only). }
+        reason: { type: string, maxLength: 500 }
+    Exclusion:
+      type: object
+      required: [exclusionId, kind, from, until]
+      properties:
+        exclusionId: { type: integer }
+        kind: { type: string }
+        from: { type: string, format: date-time }
+        until: { type: [string, "null"], format: date-time }
+    StakeAuthorizationRequest:
+      type: object
+      required: [operatorCode, playerId, gameServerTxnId, gameCode, amount]
+      additionalProperties: false
+      properties:
+        operatorCode: { type: string }
+        playerId: { type: string, format: uuid }
+        gameServerTxnId: { type: string, maxLength: 128 }
+        gameCode: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+    StakeAuthorization:
+      type: object
+      required: [authorizationId, decision]
+      properties:
+        authorizationId: { type: string, format: uuid }
+        decision: { enum: [approved, denied] }
+        denyReason: { enum: [NOT_VERIFIED, EXCLUDED, COOL_OFF, LOSS_LIMIT, WAGER_LIMIT, SESSION_LIMIT, MAX_STAKE, UNKNOWN_PLAYER, null] }
+        ruleSetVersion: { type: integer }

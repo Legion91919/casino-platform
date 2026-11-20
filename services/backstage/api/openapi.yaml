@@ -1,0 +1,193 @@
+openapi: 3.1.0
+info:
+  title: Backstage API (slice 1)
+  version: 1.0.0
+  summary: Service catalogue, golden-path scaffolding, scorecards and AI-governance records.
+  description: |
+    Internal developer portal for platform teams and game studios. CI pipelines post results here;
+    people read scorecards. Scaffolding a service creates a repo folder from a golden-path template
+    that already contains the Baton (.agentic/), CI, OpenAPI stub, migrations with DB tests, outbox
+    and telemetry.
+servers:
+  - url: https://backstage.platform.example.test
+security:
+  - staffOidc: []
+paths:
+  /v1/services:
+    get:
+      operationId: listServices
+      summary: Service catalogue with owner team, tier, lifecycle and current score.
+      responses:
+        "200":
+          description: Services
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Service" } }
+    post:
+      operationId: scaffoldService
+      summary: Create a new service from a golden-path template (opens a pull request with the scaffold).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceCode, teamCode, tier, templateCode, purpose]
+              additionalProperties: false
+              properties:
+                serviceCode: { type: string, pattern: "^[a-z][a-z0-9-]{2,30}$" }
+                teamCode: { type: string, pattern: "^team-[a-z0-9-]{2,30}$" }
+                tier: { type: integer, minimum: 0, maximum: 3 }
+                templateCode: { type: string }
+                purpose: { type: string, description: "One sentence: who can't do what, because why. Seeds .agentic/product.md." }
+                traits: { type: array, items: { type: string }, description: Architecture traits; the advisor's recommendation is written into the scaffold. }
+      responses:
+        "202":
+          description: Scaffold pull request opened.
+          content:
+            application/json:
+              schema: { type: object, properties: { pullRequestUrl: { type: string, format: uri } } }
+        "409": { $ref: "#/components/responses/Problem" }
+  /v1/services/{serviceCode}/scorecard:
+    get:
+      operationId: getScorecard
+      summary: Latest result per check (tests, coverage, SLO, security, AI governance, docs).
+      parameters:
+        - { name: serviceCode, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Scorecard
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  serviceCode: { type: string }
+                  pct: { type: number }
+                  checks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        checkCode: { type: string }
+                        category: { type: string }
+                        passed: { type: boolean }
+                        value: { type: [number, "null"] }
+                        measuredAt: { type: string, format: date-time }
+  /v1/scorecard-results:
+    post:
+      operationId: postScorecardResult
+      summary: CI posts a check result with a link to its evidence.
+      security: [ { ciToken: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceCode, checkCode, passed, evidenceUrl]
+              properties:
+                serviceCode: { type: string }
+                checkCode: { type: string }
+                value: { type: number }
+                passed: { type: boolean }
+                evidenceUrl: { type: string, pattern: "^https://" }
+      responses:
+        "201": { description: Recorded. }
+  /v1/prompts:
+    post:
+      operationId: registerPromptVersion
+      summary: Register a prompt version (hash, purpose, eval suite, threshold). Approval needs a passing eval run.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceCode, name, version, contentSha256, purpose, evalSuite, evalThreshold]
+              properties:
+                serviceCode: { type: string }
+                name: { type: string }
+                version: { type: integer, minimum: 1 }
+                contentSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+                purpose: { type: string }
+                evalSuite: { type: string }
+                evalThreshold: { type: number, minimum: 0, maximum: 1 }
+      responses:
+        "201": { description: Registered as draft. }
+        "409": { $ref: "#/components/responses/Problem" }
+  /v1/eval-runs:
+    post:
+      operationId: postEvalRun
+      summary: CI posts an eval run for a prompt version (at least 20 cases).
+      security: [ { ciToken: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [promptId, modelRef, cases, score, threshold]
+              properties:
+                promptId: { type: integer }
+                modelRef: { type: string }
+                cases: { type: integer, minimum: 20 }
+                score: { type: number, minimum: 0, maximum: 1 }
+                threshold: { type: number, minimum: 0, maximum: 1 }
+      responses:
+        "201": { description: Recorded; passed = score >= threshold. }
+  /v1/change-records:
+    post:
+      operationId: postChangeRecord
+      summary: The merge bot records every merged change (AI-assisted or not, reviewer, critic review, tests added).
+      security: [ { ciToken: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceCode, prRef, author, aiAssisted, humanReviewer, criticReview, testsAdded]
+              properties:
+                serviceCode: { type: string }
+                prRef: { type: string }
+                author: { type: string }
+                aiAssisted: { type: boolean }
+                humanReviewer: { type: string }
+                criticReview: { type: boolean }
+                testsAdded: { type: boolean }
+      responses:
+        "201": { description: Recorded. }
+        "422":
+          description: Governance rule broken (self-review, AI change without human review, tier-0 AI change without critic). The merge bot blocks the merge.
+          content:
+            application/problem+json:
+              schema: { type: object }
+components:
+  securitySchemes:
+    staffOidc:
+      type: openIdConnect
+      openIdConnectUrl: https://sso.platform.example.test/.well-known/openid-configuration
+    ciToken:
+      type: http
+      scheme: bearer
+      description: Short-lived OIDC token from the CI runner (no static secrets).
+  responses:
+    Problem:
+      description: Error (RFC 9457).
+      content:
+        application/problem+json:
+          schema: { type: object, required: [type, title, status], properties: { type: { type: string }, title: { type: string }, status: { type: integer } } }
+  schemas:
+    Service:
+      type: object
+      required: [serviceCode, teamCode, tier, lifecycle]
+      properties:
+        serviceCode: { type: string }
+        teamCode: { type: string }
+        tier: { type: integer }
+        lifecycle: { enum: [experimental, production, deprecated] }
+        repoPath: { type: string }
+        templateCode: { type: string }
+        templateVersion: { type: string }
+        scorePct: { type: number }

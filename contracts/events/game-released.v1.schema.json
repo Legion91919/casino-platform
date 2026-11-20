@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/game-released.v1.schema.json",
+  "title": "GameReleased v1",
+  "description": "A certified build started (or changed) a rollout for an operator in a jurisdiction.",
+  "x-producer": "dealer",
+  "x-partition-key": "gameCode",
+  "allOf": [
+    {
+      "$ref": "envelope.v1.schema.json"
+    }
+  ],
+  "properties": {
+    "eventType": {
+      "const": "GameReleased"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "const": "dealer"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "gameCode",
+        "studioCode",
+        "buildVersion",
+        "gameCategory",
+        "jurisdictionCode",
+        "rolloutId",
+        "percentage",
+        "rtpBps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "gameCode": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+        },
+        "studioCode": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+        },
+        "buildVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$"
+        },
+        "gameCategory": {
+          "enum": [
+            "slot",
+            "table",
+            "live",
+            "instant",
+            "crash"
+          ]
+        },
+        "jurisdictionCode": {
+          "type": "string",
+          "pattern": "^JUR-[A-Z0-9]{1,8}$"
+        },
+        "rolloutId": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "percentage": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "rtpBps": {
+          "type": "integer",
+          "minimum": 7000,
+          "maximum": 10000
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/envelope.v1.schema.json",
+  "title": "Event envelope v1",
+  "description": "Common envelope for every cross-service event. Served by each producer's GET /v1/events feed from its transactional outbox.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "eventType",
+    "schemaVersion",
+    "occurredAt",
+    "producer",
+    "operatorCode",
+    "partitionKey",
+    "data"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique per event. Consumers de-duplicate on it (inbox table)."
+    },
+    "eventType": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z]+$"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "enum": [
+        "cashier",
+        "pitboss",
+        "dealer",
+        "comps",
+        "countroom",
+        "backstage"
+      ]
+    },
+    "operatorCode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z][a-z0-9-]{1,31}$",
+      "description": "Tenant. Null only for platform-wide events (e.g. a game killed for all operators)."
+    },
+    "partitionKey": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Ordering key: events with the same key are delivered in order (round id, player id or game code)."
+    },
+    "traceparent": {
+      "type": "string",
+      "pattern": "^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$",
+      "description": "W3C trace context of the request that caused the event."
+    },
+    "data": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "money": {
+      "type": "object",
+      "required": [
+        "amountMinor",
+        "currency"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "amountMinor": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Integer minor units (cents). Never a float."
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      }
+    }
+  }
+}

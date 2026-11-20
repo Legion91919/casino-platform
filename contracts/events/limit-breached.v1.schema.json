@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/limit-breached.v1.schema.json",
+  "title": "LimitBreached v1",
+  "description": "A responsible-gambling limit stopped an action (stake denied or session ended).",
+  "x-producer": "pitboss",
+  "x-partition-key": "playerId",
+  "allOf": [
+    {
+      "$ref": "envelope.v1.schema.json"
+    }
+  ],
+  "properties": {
+    "eventType": {
+      "const": "LimitBreached"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "const": "pitboss"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "playerId",
+        "jurisdictionCode",
+        "limitType",
+        "period",
+        "action",
+        "occurredAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "playerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-personal-data": "pseudonymous platform player id; never a name, email or document number"
+        },
+        "jurisdictionCode": {
+          "type": "string",
+          "pattern": "^JUR-[A-Z0-9]{1,8}$"
+        },
+        "limitType": {
+          "enum": [
+            "deposit",
+            "loss",
+            "wager",
+            "session_time"
+          ]
+        },
+        "period": {
+          "enum": [
+            "session",
+            "day",
+            "week",
+            "month"
+          ]
+        },
+        "limit": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "attempted": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "limitMinutes": {
+          "type": "integer",
+          "minimum": 5
+        },
+        "action": {
+          "enum": [
+            "STAKE_DENIED",
+            "SESSION_ENDED",
+            "DEPOSIT_DENIED"
+          ]
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/bonus-completed.v1.schema.json",
+  "title": "BonusCompleted v1",
+  "description": "Wagering was met; the remaining bonus balance was converted to cash by Cashier.",
+  "x-producer": "comps",
+  "x-partition-key": "playerId",
+  "allOf": [
+    {
+      "$ref": "envelope.v1.schema.json"
+    }
+  ],
+  "properties": {
+    "eventType": {
+      "const": "BonusCompleted"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "const": "comps"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "awardId",
+        "playerId",
+        "convertedToCash",
+        "completedAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "awardId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "playerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-personal-data": "pseudonymous platform player id; never a name, email or document number"
+        },
+        "convertedToCash": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

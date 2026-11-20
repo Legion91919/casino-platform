@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/settlement-reversed.v1.schema.json",
+  "title": "SettlementReversed v1",
+  "description": "A settled transaction was reversed by a new, opposite posting (never by editing the ledger).",
+  "x-producer": "cashier",
+  "x-partition-key": "externalRoundId",
+  "allOf": [
+    {
+      "$ref": "envelope.v1.schema.json"
+    }
+  ],
+  "properties": {
+    "eventType": {
+      "const": "SettlementReversed"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "const": "cashier"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "externalRoundId",
+        "gameCode",
+        "playerId",
+        "reversedTxnId",
+        "reversingTxnId",
+        "amount",
+        "reason",
+        "actor",
+        "reversedAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "externalRoundId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "gameCode": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+        },
+        "playerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-personal-data": "pseudonymous platform player id; never a name, email or document number"
+        },
+        "reversedTxnId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reversingTxnId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "amount": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "reason": {
+          "enum": [
+            "GAME_SERVER_ROLLBACK",
+            "MALFUNCTION",
+            "OPERATOR_ADJUSTMENT"
+          ]
+        },
+        "actor": {
+          "type": "string",
+          "description": "game server id or staff id"
+        },
+        "reversedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

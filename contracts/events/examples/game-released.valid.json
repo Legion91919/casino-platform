@@ -1,0 +1,20 @@
+{
+  "eventId": "00000000-0000-4000-8000-000000000007",
+  "eventType": "GameReleased",
+  "schemaVersion": 1,
+  "occurredAt": "2026-11-20T10:15:30.120Z",
+  "producer": "dealer",
+  "operatorCode": "kestrel",
+  "partitionKey": "jungle-reels",
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {
+    "gameCode": "jungle-reels",
+    "studioCode": "ember-forge",
+    "buildVersion": "1.5.0-rc.1",
+    "gameCategory": "slot",
+    "jurisdictionCode": "JUR-A",
+    "rolloutId": 2,
+    "percentage": 10,
+    "rtpBps": 9600
+  }
+}

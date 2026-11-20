@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/bet-placed.v1.schema.json",
+  "title": "BetPlaced v1",
+  "description": "A stake was accepted (Pitboss approved it and the ledger posting committed).",
+  "x-producer": "cashier",
+  "x-partition-key": "externalRoundId",
+  "allOf": [
+    {
+      "$ref": "envelope.v1.schema.json"
+    }
+  ],
+  "properties": {
+    "eventType": {
+      "const": "BetPlaced"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "const": "cashier"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "externalRoundId",
+        "gameCode",
+        "studioCode",
+        "jurisdictionCode",
+        "playerId",
+        "gameServerTxnId",
+        "cashStake",
+        "bonusStake",
+        "placedAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "externalRoundId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "gameCode": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+        },
+        "studioCode": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+        },
+        "jurisdictionCode": {
+          "type": "string",
+          "pattern": "^JUR-[A-Z0-9]{1,8}$"
+        },
+        "playerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-personal-data": "pseudonymous platform player id; never a name, email or document number"
+        },
+        "gameServerTxnId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "cashStake": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "bonusStake": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "placedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

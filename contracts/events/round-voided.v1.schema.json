@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/round-voided.v1.schema.json",
+  "title": "RoundVoided v1",
+  "description": "A round was voided (game-server rollback or operator request) and its stakes refunded.",
+  "x-producer": "cashier",
+  "x-partition-key": "externalRoundId",
+  "allOf": [
+    {
+      "$ref": "envelope.v1.schema.json"
+    }
+  ],
+  "properties": {
+    "eventType": {
+      "const": "RoundVoided"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "const": "cashier"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "externalRoundId",
+        "gameCode",
+        "jurisdictionCode",
+        "playerId",
+        "priorStatus",
+        "refunded",
+        "reason",
+        "voidedAt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "externalRoundId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "gameCode": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+        },
+        "jurisdictionCode": {
+          "type": "string",
+          "pattern": "^JUR-[A-Z0-9]{1,8}$"
+        },
+        "playerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-personal-data": "pseudonymous platform player id; never a name, email or document number"
+        },
+        "priorStatus": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "refunded": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "reason": {
+          "enum": [
+            "GAME_SERVER_ROLLBACK",
+            "GAME_KILLED",
+            "OPERATOR_REQUEST",
+            "TIMEOUT"
+          ]
+        },
+        "voidedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

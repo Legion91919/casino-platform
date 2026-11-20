@@ -1,0 +1,69 @@
+# Sketch for local development (design wave: databases only; service containers come with the build wave).
+# ADR-0002: Cashier (tier 0, hot path) gets a dedicated PostgreSQL 16; the other five services share
+# one server with a database and owner role each. No service may connect to another service's database.
+# Local-only credentials come from .env (see .env.example); never commit real secrets.
+name: casino-platform
+
+services:
+  pg-cashier:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: cashier
+      POSTGRES_USER: ${PG_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?set PG_PASSWORD in .env}
+    command: ["postgres", "-c", "max_connections=300", "-c", "wal_level=replica", "-c", "synchronous_commit=on"]
+    ports: ["55433:5432"]
+    volumes:
+      - pg-cashier-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d cashier"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  pg-platform:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${PG_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?set PG_PASSWORD in .env}
+    ports: ["55434:5432"]
+    volumes:
+      - pg-platform-data:/var/lib/postgresql/data
+      - ./tools/sql/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d backstage"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: apply every migration and run every DB test against a fresh server
+  # (tools/db-verify.sh creates its own database per service, so it uses pg-platform as a scratch server).
+  db-verify:
+    profiles: ["verify"]
+    image: postgres:16
+    depends_on:
+      pg-platform:
+        condition: service_healthy
+    environment:
+      DB_VERIFY_EXTERNAL: "1"
+      PGHOST: pg-platform
+      PGPORT: "5432"
+      PGUSER: ${PG_USER:-postgres}
+      PGPASSWORD: ${PG_PASSWORD:?set PG_PASSWORD in .env}
+    volumes:
+      - ./:/repo:ro
+    working_dir: /repo
+    entrypoint: ["bash", "tools/db-verify.sh"]
+
+  # Build wave (placeholders, not built yet):
+  # cashier:   { build: services/cashier,   depends_on: { pg-cashier:  { condition: service_healthy } } }
+  # pitboss:   { build: services/pitboss,   depends_on: { pg-platform: { condition: service_healthy } } }
+  # dealer:    { build: services/dealer,    depends_on: { pg-platform: { condition: service_healthy } } }
+  # comps:     { build: services/comps,     depends_on: { pg-platform: { condition: service_healthy } } }
+  # countroom: { build: services/countroom, depends_on: { pg-platform: { condition: service_healthy } } }
+  # backstage: { build: services/backstage, depends_on: { pg-platform: { condition: service_healthy } } }
+
+volumes:
+  pg-cashier-data:
+  pg-platform-data:

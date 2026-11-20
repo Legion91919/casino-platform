@@ -1,0 +1,295 @@
+openapi: 3.1.0
+info:
+  title: Cashier API (slice 1)
+  version: 1.0.0
+  summary: Seamless wallet for game servers, transfers for operators, bonus credits for Comps, event feed.
+  description: |
+    Money rules (suite ADR-0005): amounts are integer minor units; every money-moving call carries the
+    caller's transaction id as its idempotency key. A retry with the same id and the same body returns
+    the stored response (HTTP 200, header `Idempotent-Replay: true`); the same id with a different body
+    returns 409. A stake is only accepted after Pitboss approves it; if Pitboss cannot answer in 150 ms
+    the stake is rejected (fail closed). Wins and rollbacks are never refused for limits.
+servers:
+  - url: https://cashier.platform.example.test
+security:
+  - gameServerMtls: []
+    gameSession: []
+tags:
+  - name: wallet
+    description: Called by studio game servers (seamless wallet).
+  - name: operator
+    description: Called by operators (hosted-wallet transfers).
+  - name: internal
+    description: Called by platform services.
+paths:
+  /v1/wallet/balance:
+    get:
+      tags: [wallet]
+      operationId: getBalance
+      summary: Current cash and bonus balance for the player in the game session.
+      responses:
+        "200":
+          description: Balance
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Balance" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/wallet/debit:
+    post:
+      tags: [wallet]
+      operationId: debitStake
+      summary: Debit a stake and open (or continue) a round.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DebitRequest" }
+      responses:
+        "200":
+          description: Accepted or replayed. Rejections are 422 and are also stored and replayed.
+          headers:
+            Idempotent-Replay: { $ref: "#/components/headers/IdempotentReplay" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WalletResult" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422":
+          description: Rejected (INSUFFICIENT_FUNDS, LIMIT_REACHED, KEY_EXPIRED, PLAYER_EXCLUDED, NOT_VERIFIED, ROUND_CLOSED, ROLLED_BACK, RG_UNAVAILABLE).
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/wallet/credit:
+    post:
+      tags: [wallet]
+      operationId: creditWin
+      summary: Credit a win (zero allowed) and optionally close the round. Never refused for limits or exclusion.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreditRequest" }
+      responses:
+        "200":
+          description: Accepted or replayed.
+          headers:
+            Idempotent-Replay: { $ref: "#/components/headers/IdempotentReplay" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WalletResult" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/wallet/rollback:
+    post:
+      tags: [wallet]
+      operationId: rollbackTransaction
+      summary: Reverse an earlier stake. If the stake was never seen, records a tombstone so it can never land later.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RollbackRequest" }
+      responses:
+        "200":
+          description: Rolled back, already rolled back (replay), or tombstoned.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WalletResult" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422":
+          description: TXN_SETTLED (a settled round needs an operator adjustment, see runbook) or ALREADY_REVERSED.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /v1/transfers:
+    post:
+      tags: [operator]
+      operationId: createTransfer
+      summary: Operator moves money into or out of a player's hosted wallet.
+      security:
+        - operatorMtls: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransferRequest" }
+      responses:
+        "200":
+          description: Accepted or replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WalletResult" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/bonus-credits:
+    post:
+      tags: [internal]
+      operationId: creditBonus
+      summary: Comps credits (or, with negative intent, forfeits/converts) the separate bonus balance. Keyed by award id.
+      security:
+        - serviceMtls: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BonusCreditRequest" }
+      responses:
+        "200":
+          description: Accepted or replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WalletResult" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/events:
+    get:
+      tags: [internal]
+      operationId: readEventFeed
+      summary: Outbox feed for consumers (BetPlaced, BetSettled, RoundVoided, SettlementReversed).
+      security:
+        - serviceMtls: []
+      parameters:
+        - $ref: "#/components/parameters/After"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: A page of events in commit order, and the cursor to continue from.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventPage" }
+components:
+  securitySchemes:
+    gameServerMtls: { type: mutualTLS, description: Client certificate issued per studio game server. }
+    operatorMtls: { type: mutualTLS, description: Client certificate issued per operator; fixes the tenant. }
+    serviceMtls: { type: mutualTLS, description: Platform service identity (service mesh). }
+    gameSession:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Game-session token signed by Dealer (operator, player, jurisdiction, currency, game, build). Verified locally against Dealer's JWKS.
+  headers:
+    IdempotentReplay:
+      description: "true when the response is the stored result of an earlier identical request."
+      schema: { type: boolean }
+  parameters:
+    After:
+      name: after
+      in: query
+      required: false
+      description: Opaque cursor from the previous page (encodes tx_id and position). Omit to start at the oldest retained event.
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 1000, default: 500 }
+  responses:
+    Problem:
+      description: Error (RFC 9457 problem details).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    Money:
+      type: object
+      required: [amountMinor, currency]
+      additionalProperties: false
+      properties:
+        amountMinor: { type: integer, format: int64, minimum: 0, description: Integer minor units. }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+    TxnId:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: "The caller's transaction id: idempotency key, unique per operator. Must be time-ordered (UUIDv7 or ULID); ids older than 30 days are refused with KEY_EXPIRED."
+    Balance:
+      type: object
+      required: [cash, bonus]
+      properties:
+        cash: { $ref: "#/components/schemas/Money" }
+        bonus: { $ref: "#/components/schemas/Money" }
+    DebitRequest:
+      type: object
+      required: [transactionId, roundId, gameCode, amount]
+      additionalProperties: false
+      properties:
+        transactionId: { $ref: "#/components/schemas/TxnId" }
+        roundId: { type: string, minLength: 1, maxLength: 128 }
+        gameCode: { type: string, pattern: "^[a-z0-9][a-z0-9-]{1,63}$" }
+        amount: { $ref: "#/components/schemas/Money" }
+        useBonusFirst: { type: boolean, default: false }
+    CreditRequest:
+      type: object
+      required: [transactionId, roundId, gameCode, amount, closeRound]
+      additionalProperties: false
+      properties:
+        transactionId: { $ref: "#/components/schemas/TxnId" }
+        roundId: { type: string, minLength: 1, maxLength: 128 }
+        gameCode: { type: string, pattern: "^[a-z0-9][a-z0-9-]{1,63}$" }
+        amount: { $ref: "#/components/schemas/Money" }
+        closeRound: { type: boolean }
+    RollbackRequest:
+      type: object
+      required: [transactionId, roundId, gameCode, referenceTransactionId]
+      additionalProperties: false
+      properties:
+        transactionId: { $ref: "#/components/schemas/TxnId" }
+        roundId: { type: string }
+        gameCode: { type: string }
+        referenceTransactionId: { $ref: "#/components/schemas/TxnId" }
+    TransferRequest:
+      type: object
+      required: [transactionId, playerId, direction, amount]
+      additionalProperties: false
+      properties:
+        transactionId: { $ref: "#/components/schemas/TxnId" }
+        playerId: { type: string, format: uuid }
+        direction: { enum: [deposit, withdrawal] }
+        amount: { $ref: "#/components/schemas/Money" }
+    BonusCreditRequest:
+      type: object
+      required: [awardId, playerId, operation, amount]
+      additionalProperties: false
+      properties:
+        awardId: { type: string, format: uuid, description: Idempotency key together with operation. }
+        playerId: { type: string, format: uuid }
+        operation: { enum: [credit, convert_to_cash, forfeit] }
+        amount: { $ref: "#/components/schemas/Money" }
+    WalletResult:
+      type: object
+      required: [transactionId, status, balance]
+      properties:
+        transactionId: { $ref: "#/components/schemas/TxnId" }
+        platformTransactionId: { type: integer, format: int64 }
+        status: { enum: [accepted, rejected, tombstoned] }
+        balance: { $ref: "#/components/schemas/Balance" }
+    Event:
+      type: object
+      required: [eventId, eventType, schemaVersion, occurredAt, producer, partitionKey, data]
+      description: See contracts/events/envelope.v1.schema.json.
+      properties:
+        eventId: { type: string, format: uuid }
+        eventType: { type: string }
+        schemaVersion: { type: integer }
+        occurredAt: { type: string, format: date-time }
+        producer: { type: string }
+        operatorCode: { type: [string, "null"] }
+        partitionKey: { type: string }
+        traceparent: { type: string }
+        data: { type: object }
+    EventPage:
+      type: object
+      required: [events, next]
+      properties:
+        events: { type: array, items: { $ref: "#/components/schemas/Event" } }
+        next: { type: string, description: Cursor for the next call. Unchanged when there is nothing new. }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        code: { type: string, description: "Stable machine code, e.g. INSUFFICIENT_FUNDS, IDEMPOTENCY_CONFLICT." }
+        traceId: { type: string }
