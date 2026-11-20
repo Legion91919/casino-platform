@@ -165,9 +165,9 @@ sequenceDiagram
   De-->>GS: game-session JWT (operator, player, JUR-A, EUR, build), signed ES256
   Pl->>GS: spin 2.50
   GS->>Ca: POST /v1/wallet/debit {txn gs-100, round r-1, 2.50} + JWT
-  Ca->>Ca: verify JWT with cached JWKS; look up key (kestrel, gs-100): new
+  Ca->>Ca: verify JWT with cached JWKS, look up key (kestrel, gs-100): new
   Ca->>Pi: POST /v1/stake-authorizations {gs-100, 2.50} (150 ms budget)
-  Pi->>Pi: rule set v3 + limits + exclusions → approved; store decision (key gs-100)
+  Pi->>Pi: rule set v3 + limits + exclusions → approved, store decision (key gs-100)
   Pi-->>Ca: approved, authorizationId
   Ca->>Ca: ONE transaction: wallet_txn + posting (player -250, house +250) + round open + outbox BetPlaced
   Ca-->>GS: accepted, balance 97.50
@@ -181,7 +181,7 @@ sequenceDiagram
   Co->>Co: ONE transaction: inbox(eventId) + wagering contribution (if active award)
   Cr->>Ca: GET /v1/events?after=cursor (poll)
   Ca-->>Cr: BetPlaced, BetSettled
-  Cr->>Cr: raw_event; bet_fact (dedupe on eventId, business_date); nightly ggr_daily rebuild
+  Cr->>Cr: raw_event, bet_fact (dedupe on eventId, business_date), nightly ggr_daily rebuild
   Pi->>Ca: GET /v1/events (poll)
   Ca-->>Pi: BetSettled → net-loss usage for limits
 ```
@@ -231,7 +231,7 @@ sequenceDiagram
   Ca->>Ca: ONE transaction: reversing posting (player -600, house +600, may not overdraw: if balance < 600, reverse what exists and open a receivable), txn_reversal row, round closed→voided, outbox SettlementReversed
   Ca-->>Ops: done
   Co->>Ca: poll → SettlementReversed: hold award for manual review (progress is never decremented automatically)
-  Cr->>Ca: poll → restate business day; re-run ggr_daily; supersede any sealed export for that day
+  Cr->>Ca: poll → restate business day, re-run ggr_daily, supersede any sealed export for that day
   Pi->>Ca: poll → adjust net-loss usage
 ```
 
@@ -245,7 +245,7 @@ sequenceDiagram
   Note over Pi: daily loss limit 50.00, net loss so far 49.00
   GS->>Ca: debit gs-400 (2.50)
   Ca->>Pi: authorise gs-400
-  Pi->>Pi: 49.00 + 2.50 > 50.00 → denied LOSS_LIMIT; outbox LimitBreached
+  Pi->>Pi: 49.00 + 2.50 > 50.00 → denied LOSS_LIMIT, outbox LimitBreached
   Pi-->>Ca: denied
   Ca->>Ca: store rejected wallet_txn (replayable)
   Ca-->>GS: 422 LIMIT_REACHED

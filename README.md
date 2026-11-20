@@ -48,6 +48,28 @@ flowchart LR
 | [`backstage`](services/backstage) | team-backstage | golden paths, catalogue, scorecards, AI governance | Layered monolith → Modular monolith |
 
 
+## The system at a glance
+
+**Context map**: who calls whom, synchronously (solid) or through outbox events (dotted). [SVG](docs/media/context-map.svg)
+
+![Context map: operators, studio game servers, test labs and regulators around the six platform services, with sync calls and outbox event flows](docs/media/context-map.png)
+
+**A full bet round**, stage by stage (launch, redeem, stake, win, then the outbox feeds), followed by the whole sequence:
+
+![Bet round step-through: launch, redeem, stake, win, feed to Comps, feed to Countroom and Pitboss](docs/media/bet-round.gif)
+
+<details><summary>Full bet-round sequence diagram</summary>
+
+![Bet-round sequence diagram: player, operator, Dealer, Pitboss, game server, Cashier, Comps and Countroom across 30 numbered messages](docs/media/bet-round.png)
+
+</details>
+
+**Every migration and DB test against real PostgreSQL 16**: `tools/db-verify.sh` starts a throwaway server, applies all six services' migrations and runs 175 assertions.
+
+![tools/db-verify.sh output: ten DB test files ok, 175 assertions passed, exit code 0](docs/media/db-verify.png)
+
+More diagrams: [containers](docs/media/containers.png), [data flow](docs/media/data-flow.png), [team topology](docs/media/team-topology.png) (SVGs alongside). Rendered from the Mermaid blocks in `docs/DESIGN.md`, `.agentic/architecture.md` and `docs/team-topology.md` by `tools/visuals/` (`cd tools/visuals && npm install && node render.mjs`; `python3 capture_db_verify.py && node terminal.mjs db-verify-session.json ../../docs/media db-verify --still` for the screenshot).
+
 ## Run it in GitHub Codespaces
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Legion91919/casino-platform?quickstart=1)

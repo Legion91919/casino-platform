@@ -19,6 +19,37 @@ Studios (Ember Forge, Tidewater Studio, Quillon Games) are external stream-align
 Dealer and Cashier as a service and Backstage's `game-server-adapter` template.
 
 ## Interaction modes
+```mermaid
+flowchart TB
+  classDef stream fill:#fff4d6,stroke:#b8860b,color:#2b2b2b
+  classDef complicated fill:#fde2e2,stroke:#c0392b,color:#2b2b2b
+  classDef platform fill:#e3eefc,stroke:#3b6db3,color:#2b2b2b
+  classDef external fill:#eeeeee,stroke:#777777,color:#2b2b2b
+  ST["Studios (external)<br/>Ember Forge, Tidewater, Quillon"]:::external
+  OPS["Operators (external)<br/>Kestrel, Baobab, Marula, Fynbos"]:::external
+  subgraph T0["Tier 0: 24/7 on-call"]
+    TC["team-cashier<br/>stream-aligned, 6<br/>wallet + ledger"]:::stream
+    TP["team-pitboss<br/>complicated subsystem, 5<br/>limits, jurisdiction rules"]:::complicated
+  end
+  subgraph T1["Tier 1-3"]
+    TD["team-dealer<br/>stream-aligned, 5<br/>release + launch"]:::stream
+    TCO["team-comps<br/>stream-aligned, 4<br/>bonuses"]:::stream
+    TCR["team-countroom<br/>stream-aligned, 4<br/>reports + exports"]:::stream
+  end
+  TB["team-backstage<br/>platform, 4<br/>portal, templates, CI"]:::platform
+  TC <== "collaboration (slice 1), then X-as-a-service" ==> TP
+  ST -- "X-as-a-service" --> TD
+  ST -- "X-as-a-service" --> TC
+  OPS -- "X-as-a-service (mTLS APIs)" --> TD
+  OPS -- "X-as-a-service (mTLS APIs)" --> TP
+  TCO -- "X-as-a-service (bonus credit)" --> TC
+  TB -. "facilitating, then X-as-a-service" .-> TC
+  TB -. "facilitating, then X-as-a-service" .-> TD
+  TP -. "facilitating (compliance analyst)" .-> TCO
+  TP -. "facilitating (compliance analyst)" .-> TCR
+```
+Yellow = stream-aligned, red = complicated subsystem, blue = platform, grey = external teams. Operators also use Cashier, Comps and Countroom as a service, and Backstage facilitates every team (table below); the diagram shows one edge of each to stay readable.
+
 | Between | Mode | What it looks like | Changes to |
 |---|---|---|---|
 | Cashier ↔ Pitboss | **collaboration** during slice 1 (the authorisation contract, fail-closed rule, latency budget) | shared design sessions, joint drill D1 | X-as-a-service once the contract is stable (after slice 1) |

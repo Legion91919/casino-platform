@@ -1,0 +1,35 @@
+{
+ "title": "casino-platform: tools/db-verify.sh",
+ "prompt": "~/casino-platform $",
+ "width": 1000,
+ "height": 500,
+ "fontSize": 15,
+ "highlight": [
+  [
+   "^ok ",
+   "#7fd4a8"
+  ],
+  [
+   "all migrations applied|assertions passed",
+   "#7fd4a8"
+  ],
+  [
+   "FAIL|ERROR",
+   "#f28b82"
+  ],
+  [
+   "^started|stopped",
+   "#7c8699"
+  ]
+ ],
+ "steps": [
+  {
+   "cmd": "tools/db-verify.sh",
+   "out": "started postgres (PostgreSQL) 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on port 55432\nok    backstage  01_catalogue_and_governance.sql       16 assertions\nok    cashier    01_ledger_double_entry.sql            17 assertions\nok    cashier    02_idempotency.sql                    13 assertions\nok    cashier    03_rounds_partitions_outbox.sql       20 assertions\nok    comps      01_bonus_rules.sql                    19 assertions\nok    countroom  01_partitions_and_ggr.sql             22 assertions\nok    dealer     01_release_rules.sql                  22 assertions\nok    dealer     02_launch_sessions.sql                 8 assertions\nok    pitboss    01_limits_exclusions.sql              27 assertions\nok    pitboss    02_audit_and_tenancy.sql              11 assertions\nassertions passed: 175\ndb-verify: all migrations applied and all DB tests passed\nserver stopped, data dir removed"
+  },
+  {
+   "cmd": "echo $?",
+   "out": "0"
+  }
+ ]
+}
