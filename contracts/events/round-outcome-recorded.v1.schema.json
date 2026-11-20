@@ -1,0 +1,363 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.test/casino-platform/events/round-outcome-recorded.v1.schema.json",
+  "title": "RoundOutcomeRecorded v1",
+  "description": "A studio game server finished a round: what the certified game decided (reel stops and every win) and what the wallet paid. Signed by the studio with a key registered at Dealer, so Catwalk can show players exactly what happened and prove it was not altered on the way.",
+  "x-producer": "studio",
+  "x-partition-key": "roundId",
+  "allOf": [
+    {
+      "$ref": "envelope.v1.schema.json"
+    }
+  ],
+  "properties": {
+    "eventType": {
+      "const": "RoundOutcomeRecorded"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "const": "studio"
+    },
+    "operatorCode": {
+      "type": "string"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "roundId",
+        "studioCode",
+        "gameCode",
+        "buildVersion",
+        "mathModelSha256",
+        "jurisdictionCode",
+        "playerId",
+        "currency",
+        "stake",
+        "win",
+        "balanceAfter",
+        "outcome",
+        "playedAt",
+        "signature"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "roundId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Chosen by the game client; the game server's idempotency key and Cashier's externalRoundId."
+        },
+        "studioCode": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+        },
+        "gameCode": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+        },
+        "buildVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$"
+        },
+        "mathModelSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Identity of the certified math model (reel strips, lines, pays); the replay renderer refuses to re-compute a round from a different model."
+        },
+        "jurisdictionCode": {
+          "type": "string",
+          "pattern": "^JUR-[A-Z0-9]{1,8}$"
+        },
+        "playerId": {
+          "type": "string",
+          "format": "uuid",
+          "x-personal-data": "pseudonymous platform player id; never a name, email or document number"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "stake": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "win": {
+          "$ref": "envelope.v1.schema.json#/$defs/money"
+        },
+        "balanceAfter": {
+          "type": "object",
+          "required": [
+            "amountMinor",
+            "currency"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "amountMinor": {
+              "type": "integer"
+            },
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            }
+          }
+        },
+        "outcome": {
+          "type": "object",
+          "required": [
+            "stops",
+            "grid",
+            "lineWins",
+            "scatter"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "stops": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minItems": 1,
+              "description": "The RNG's only output: one strip index per reel."
+            },
+            "grid": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": "[reel][row] symbol codes derived from the stops."
+            },
+            "lineWins": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "line",
+                  "symbol",
+                  "count",
+                  "positions",
+                  "win"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "line": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "symbol": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "positions": {
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "win": {
+                    "$ref": "envelope.v1.schema.json#/$defs/money"
+                  },
+                  "step": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Spin of the round the win came from (0 = the paid spin). Optional; absent means 0."
+                  }
+                }
+              }
+            },
+            "scatter": {
+              "type": "object",
+              "required": [
+                "count",
+                "win"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "win": {
+                  "$ref": "envelope.v1.schema.json#/$defs/money"
+                }
+              }
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "description": "Optional (additive in v1): every spin of a round with features (held wilds, free respins, multipliers). Each step's stops are RNG output; everything else is derived, so a replay re-computes the round from the stops alone.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "step",
+                  "stops",
+                  "grid",
+                  "held",
+                  "transforms",
+                  "winMultiplier",
+                  "win"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "step": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "stops": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "grid": {
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "landed": {
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "held": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "reel",
+                        "row",
+                        "symbol",
+                        "spinsLeft"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "reel": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "row": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "symbol": {
+                          "type": "string"
+                        },
+                        "spinsLeft": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    }
+                  },
+                  "transforms": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "kind",
+                        "by",
+                        "cells"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        },
+                        "by": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                          }
+                        },
+                        "cells": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                          }
+                        },
+                        "into": {
+                          "type": "string"
+                        },
+                        "holdSpins": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  },
+                  "winMultiplier": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "win": {
+                    "$ref": "envelope.v1.schema.json#/$defs/money"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "playedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "signature": {
+          "type": "object",
+          "required": [
+            "alg",
+            "keyId",
+            "value"
+          ],
+          "additionalProperties": false,
+          "description": "Ed25519 over the canonical JSON (sorted keys, no whitespace, integers only) of every other field of data.",
+          "properties": {
+            "alg": {
+              "const": "Ed25519"
+            },
+            "keyId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{86}$"
+            }
+          }
+        }
+      }
+    }
+  }
+}

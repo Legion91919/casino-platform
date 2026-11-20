@@ -36,7 +36,7 @@ SELECT pg_temp.throws(format($q$INSERT INTO dealer.certification (build_id, juri
   VALUES (%s, 'JUR-C', 'certified', NULL, 'compliance')$q$, :stable), '23514', 'a certification needs a certificate reference');
 
 INSERT INTO game_build (game_code, version, manifest, manifest_sha256, asset_base_url, rtp_bps, status, published_at, created_by)
-VALUES ('jungle-reels', '0.9.0', '{"entrypoint": "i", "assets": []}', sha256('m090'), 'https://cdn.example.test/j/0.9.0/', 8800, 'published', now(), 'ci');
+VALUES ('jungle-reels', '0.9.0', '{"entrypoint": "i", "replayEntrypoint": "replay.html", "mathModelSha256": "2222222222222222222222222222222222222222222222222222222222222222", "assets": []}', sha256('m090'), 'https://cdn.example.test/j/0.9.0/', 8800, 'published', now(), 'ci');
 SELECT pg_temp.throws($q$INSERT INTO dealer.certification (build_id, jurisdiction_code, status, certificate_ref, decided_by)
   SELECT build_id, 'JUR-A', 'certified', 'LAB-9', 'compliance' FROM dealer.game_build WHERE version = '0.9.0'$q$,
   '23514', 'a build below the jurisdiction minimum RTP cannot be certified there');

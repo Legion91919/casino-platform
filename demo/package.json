@@ -1,0 +1,8 @@
+{
+  "name": "casino-slot-demo",
+  "private": true,
+  "type": "module",
+  "description": "Records the slot floor walkthrough for the README (docs/media/slot/).",
+  "scripts": { "record": "node record.mjs .." },
+  "devDependencies": { "playwright": "1.63.0" }
+}

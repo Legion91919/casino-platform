@@ -10,6 +10,12 @@
 /services/comps/                    @casino-platform-example/team-comps
 /services/countroom/                @casino-platform-example/team-countroom
 /services/backstage/                @casino-platform-example/team-backstage
+/services/catwalk/                  @casino-platform-example/team-catwalk
+
+# Platform-owned studio SDK and dev floor; the sample studio game is owned by its (invented) studio team
+/sdk/                               @casino-platform-example/team-backstage
+/tools/dev-floor/                   @casino-platform-example/team-backstage
+/studios/ember-forge/               @casino-platform-example/studio-ember-forge
 
 # Tier-0 migrations: owning team (branch protection requires two approvals on these paths)
 /services/cashier/db/migrations/    @casino-platform-example/team-cashier
@@ -24,6 +30,7 @@
 /contracts/events/player-excluded.v*.schema.json    @casino-platform-example/team-pitboss @casino-platform-example/team-backstage
 /contracts/events/game-*.schema.json                @casino-platform-example/team-dealer @casino-platform-example/team-backstage
 /contracts/events/bonus-*.schema.json               @casino-platform-example/team-comps @casino-platform-example/team-backstage
+/contracts/events/round-outcome-recorded.v*.schema.json @casino-platform-example/team-catwalk @casino-platform-example/team-dealer @casino-platform-example/team-backstage
 
 # Suite decisions need every team lead (via the architecture group team)
 /.agentic/decisions/                @casino-platform-example/architecture-group

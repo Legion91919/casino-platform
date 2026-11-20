@@ -19,6 +19,7 @@ jobs:
       services: ${{ steps.diff.outputs.services }}
       db: ${{ steps.diff.outputs.db }}
       contracts: ${{ steps.diff.outputs.contracts }}
+      node: ${{ steps.diff.outputs.node }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,12 +34,14 @@ jobs:
             files=$(git diff --name-only "$base" "${{ github.sha }}")
           fi
           services=$(printf '%s\n' "$files" | sed -n 's#^services/\([^/]*\)/.*#\1#p' | sort -u | jq -R . | jq -sc .)
-          db=false; contracts=false
+          db=false; contracts=false; node=false
           printf '%s\n' "$files" | grep -qE '^(services/[^/]+/db/|tools/sql/|tools/db-verify\.sh)' && db=true
           printf '%s\n' "$files" | grep -qE '^(contracts/|services/[^/]+/api/|tools/validate-contracts\.py)' && contracts=true
+          printf '%s\n' "$files" | grep -qE '^(sdk/|studios/|services/catwalk/|tools/dev-floor/|package(-lock)?\.json|tsconfig\.json|contracts/events/)' && node=true
           echo "services=$services" >> "$GITHUB_OUTPUT"
           echo "db=$db" >> "$GITHUB_OUTPUT"
           echo "contracts=$contracts" >> "$GITHUB_OUTPUT"
+          echo "node=$node" >> "$GITHUB_OUTPUT"
 
   db-verify:
     needs: changes
@@ -77,6 +80,40 @@ jobs:
       - name: Event schemas, examples, OpenAPI 3.1, ownership
         run: python3 tools/validate-contracts.py
 
+  node:
+    # TypeScript parts: studio SDK, sample studio slot, Catwalk, dev floor. Typecheck + tests on real Postgres.
+    needs: changes
+    if: needs.changes.outputs.node == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-throwaway
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: ci-only-throwaway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Typecheck and test (slot math, game server, Catwalk, SDK, dev floor)
+        run: npm test
+      - name: Build both Kiln games (atlas, bundles, manifest) and check the declared RTPs
+        run: |
+          npm run build -w @ember-forge/ember-anvil
+          npm run build -w @ember-forge/rock-paper-scissors
+          node -e "const a=require('./studios/ember-forge/ember-anvil/dist/client/manifest.json'),b=require('./studios/ember-forge/rock-paper-scissors/dist/client/manifest.json'); if (a.rtpBps!==9639||b.rtpBps!==9565) process.exit(1)"
+
   service:
     needs: changes
     if: needs.changes.outputs.services != '[]'
@@ -97,7 +134,7 @@ jobs:
             dotnet build -c Release -warnaserror
             dotnet test -c Release --collect:"XPlat Code Coverage"
           else
-            echo "No code yet for ${{ matrix.service }} (design wave)."
+            echo "No .NET code in ${{ matrix.service }} yet (TypeScript parts run in the node job)."
           fi
 
   safety:

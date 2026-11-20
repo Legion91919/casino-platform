@@ -40,8 +40,10 @@
         "dealer",
         "comps",
         "countroom",
-        "backstage"
-      ]
+        "backstage",
+        "studio"
+      ],
+      "description": "Platform service that wrote the event, or 'studio' for a studio game server (its events are signed; see round-outcome-recorded)."
     },
     "operatorCode": {
       "type": [

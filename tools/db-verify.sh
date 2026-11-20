@@ -42,7 +42,8 @@ fi
 PSQL=(psql -X -q -v ON_ERROR_STOP=1 --no-psqlrc)
 total_pass=0; failed=0
 
-for svc_dir in "$ROOT"/services/*/; do
+# Platform services, plus sample studio game servers (each studio owns its own database too).
+for svc_dir in "$ROOT"/services/*/ "$ROOT"/studios/*/*/; do
   svc="$(basename "$svc_dir")"
   compgen -G "$svc_dir/db/migrations/V*.sql" >/dev/null || continue
   db="${svc//-/_}"
@@ -55,9 +56,9 @@ for svc_dir in "$ROOT"/services/*/; do
   for t in $(ls "$svc_dir"db/tests/*.sql 2>/dev/null | sort); do
     if "${PSQL[@]}" -d "$db" -f "$t" >"$LOG" 2>&1; then
       n=$(grep -c 'PASS:' "$LOG" || true); total_pass=$((total_pass + n))
-      printf 'ok    %-10s %-36s %3d assertions\n' "$svc" "$(basename "$t")" "$n"
+      printf 'ok    %-12s %-36s %3d assertions\n' "$svc" "$(basename "$t")" "$n"
     else
-      printf 'FAIL  %-10s %s\n' "$svc" "$(basename "$t")"; grep -E 'FAIL|ERROR' "$LOG" | head -5; failed=1
+      printf 'FAIL  %-12s %s\n' "$svc" "$(basename "$t")"; grep -E 'FAIL|ERROR' "$LOG" | head -5; failed=1
     fi
   done
 done

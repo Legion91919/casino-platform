@@ -1,0 +1,138 @@
+openapi: 3.1.0
+info:
+  title: Catwalk API (slice 1)
+  version: 1.0.0
+  summary: Players review the rounds they played; each round can be replayed and re-checked by the game's own certified renderer.
+  description: |
+    Catwalk is a read model. It consumes RoundOutcomeRecorded (signed by studio game servers) and
+    BetSettled (Cashier) and never moves money. Every read is scoped to the player in a Dealer-signed
+    history token (audience `catwalk`, scope `rounds:read`) and PostgreSQL row-level security enforces
+    the same scope underneath the API. Asking for a round that belongs to someone else returns the
+    same 404 as a round that does not exist.
+servers:
+  - url: https://catwalk.platform.example.test
+security:
+  - historyToken: []
+paths:
+  /history:
+    get:
+      operationId: historyPage
+      summary: The player-facing history page (HTML). The token arrives in the URL fragment, never in a query string.
+      security: []
+      responses:
+        "200": { description: HTML page, content: { text/html: {} } }
+  /v1/me/rounds:
+    get:
+      operationId: listMyRounds
+      summary: The signed-in player's rounds, newest first (keyset pagination).
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: cursor, in: query, schema: { type: string }, description: "`next` from the previous page." }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: game, in: query, schema: { type: string, pattern: "^[a-z0-9][a-z0-9-]{1,63}$" } }
+      responses:
+        "200":
+          description: A page of rounds.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rounds, next]
+                properties:
+                  rounds: { type: array, items: { $ref: "#/components/schemas/RoundSummary" } }
+                  next: { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+  /v1/me/rounds/{studioCode}/{roundId}:
+    get:
+      operationId: getMyRound
+      summary: One round with its full outcome and where the game's replay renderer lives.
+      parameters:
+        - { name: studioCode, in: path, required: true, schema: { type: string } }
+        - { name: roundId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Round detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoundDetail" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+  /v1/me/summary:
+    get:
+      operationId: getMySummary
+      summary: "Totals for a period (default the last 24 hours): rounds, staked, won, net, biggest win."
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: Summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [from, to, rounds, stakeMinor, winMinor, netMinor, biggestWinMinor]
+                properties:
+                  from: { type: string, format: date-time }
+                  to: { type: string, format: date-time }
+                  rounds: { type: integer }
+                  stakeMinor: { type: integer }
+                  winMinor: { type: integer }
+                  netMinor: { type: integer }
+                  biggestWinMinor: { type: integer }
+                  currency: { type: [string, "null"] }
+        "401": { $ref: "#/components/responses/Problem" }
+components:
+  securitySchemes:
+    historyToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Issued by Dealer (POST /v1/history-tokens) to the operator for the signed-in player. EdDSA, audience catwalk, scope rounds:read, 60 minutes.
+  responses:
+    Problem:
+      description: Error (RFC 9457 problem details).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    RoundSummary:
+      type: object
+      required: [studioCode, roundId, gameCode, buildVersion, playedAt, currency, stakeMinor, winMinor, balanceAfterMinor, walletCheck]
+      properties:
+        studioCode: { type: string }
+        roundId: { type: string, format: uuid }
+        gameCode: { type: string }
+        buildVersion: { type: string }
+        playedAt: { type: string, format: date-time }
+        currency: { type: string }
+        stakeMinor: { type: integer }
+        winMinor: { type: integer }
+        balanceAfterMinor: { type: integer }
+        walletCheck:
+          enum: [confirmed, mismatch, pending]
+          description: "confirmed: Cashier's BetSettled agrees with the game's signed outcome. mismatch: they differ (reported to on-call). pending: Cashier's event has not arrived yet."
+        walletWinMinor: { type: [integer, "null"] }
+    RoundDetail:
+      allOf:
+        - $ref: "#/components/schemas/RoundSummary"
+        - type: object
+          required: [mathModelSha256, jurisdictionCode, outcome, signatureKeyId, signatureVerified]
+          properties:
+            mathModelSha256: { type: string }
+            jurisdictionCode: { type: string }
+            outcome: { type: object, description: "Exactly RoundOutcomeRecorded.data.outcome: stops, grid, lineWins, scatter." }
+            signatureKeyId: { type: string }
+            signatureVerified: { const: true, description: Rounds that fail verification are quarantined and never served. }
+            replayUrl: { type: [string, "null"], format: uri, description: "The build's replay renderer (from Dealer). Embedded in a sandboxed iframe; receives the round by postMessage." }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        code: { type: string }

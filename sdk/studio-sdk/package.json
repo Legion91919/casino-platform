@@ -1,0 +1,9 @@
+{
+  "name": "@casino-platform/studio-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "What the platform gives every studio: canonical JSON, Ed25519 signatures for round outcomes, launch-token verification and the event-feed shape.",
+  "exports": { ".": "./src/index.ts", "./testing-pg": "./src/testing-pg.ts", "./http": "./src/http.ts" },
+  "scripts": { "test": "node --test \"test/**/*.test.ts\"" }
+}

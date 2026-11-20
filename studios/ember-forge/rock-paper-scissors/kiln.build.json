@@ -1,0 +1,8 @@
+{
+  "title": "Land of Rock Paper Scissors",
+  "fonts": [
+    ["@fontsource/lilita-one", "lilita-one-latin-400-normal.woff2"],
+    ["@fontsource/atkinson-hyperlegible", "atkinson-hyperlegible-latin-400-normal.woff2"],
+    ["@fontsource/atkinson-hyperlegible", "atkinson-hyperlegible-latin-700-normal.woff2"]
+  ]
+}

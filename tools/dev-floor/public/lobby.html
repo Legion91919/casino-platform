@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kestrel Gaming (demo lobby)</title>
+  <link rel="stylesheet" href="/lobby.css">
+  <script type="module" src="/lobby.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <p class="brand">Kestrel Gaming <span>demo operator, invented for this project</span></p>
+    <label class="who">Signed in as
+      <select id="player"></select>
+    </label>
+    <p class="cash">Balance <strong id="cash">&ndash;</strong></p>
+    <button type="button" id="lobby-home" hidden>All games</button>
+    <button type="button" id="open-history">My game history</button>
+  </header>
+  <main class="floor">
+    <section class="stage" id="stage">
+      <div class="tiles" id="tiles" aria-label="Games"></div>
+      <iframe id="game" title="Game" hidden allow="fullscreen"></iframe>
+    </section>
+    <aside class="drawer" id="drawer" hidden aria-label="Game history">
+      <div class="drawer-head"><h2>Game history</h2><button type="button" id="close-history">Close</button></div>
+      <iframe id="history" title="Your game history"></iframe>
+    </aside>
+  </main>
+  <p class="notice" id="notice" role="alert" hidden></p>
+  <details class="faults">
+    <summary>Test the failure paths</summary>
+    <label><input type="checkbox" id="wallet-down"> Wallet down: no stake can be taken, so spins are refused</label>
+    <label><input type="checkbox" id="credit-down"> Wallet drops after taking the stake: the result is saved and paid when it's back</label>
+    <button type="button" id="skew">Make the wallet pay the next round wrongly (+1.00)</button>
+  </details>
+</body>
+</html>

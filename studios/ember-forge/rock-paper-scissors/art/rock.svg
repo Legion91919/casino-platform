@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><defs><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="5" dy="8" stdDeviation="2" flood-color="#2b2a33" flood-opacity=".35"/></filter></defs><g filter="url(#s)">
+<path d="M46 170 64 96l52-34 66 14 34 58-12 58-74 22-64-10z" fill="#8a8f98" stroke="#2b2a33" stroke-width="7" stroke-linejoin="round"/>
+<path d="M64 96l52-34 66 14-40 26z" fill="#b9bec6"/><path d="M142 102l40-26 34 58-36 6z" fill="#a3a8b1"/>
+<path d="M46 170 64 96l78 6-16 70z" fill="#9aa0a9"/><path d="M126 172l16-70 38 38-6 46z" fill="#7b808a"/>
+<path d="M126 172l48 14-4 48-74-12z" fill="#6c717a"/><path d="M80 120l22-8M150 150l14 10" stroke="#e7eaee" stroke-width="6" stroke-linecap="round"/>
+</g></svg>

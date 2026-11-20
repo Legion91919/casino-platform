@@ -1,0 +1,11 @@
+{
+  "start": [
+    { "name": "floor", "cmd": "tools/with-postgres.sh node tools/dev-floor/src/run-floor.ts", "ready": "http://localhost:7401/healthz", "timeoutSeconds": 180 }
+  ],
+  "url": "http://localhost:7100",
+  "viewport": { "width": 1440, "height": 900 },
+  "out": "docs/media/slot",
+  "stepPauseMs": 1300,
+  "gifWidth": 960,
+  "gifFps": 6
+}

@@ -130,7 +130,7 @@ paths:
                 launchToken: { type: string, minLength: 43 }
       responses:
         "200":
-          description: Game-session token (JWT, ES256, 12 h max) with operator, player, jurisdiction, currency, game, build.
+          description: Game-session token (JWT, EdDSA/Ed25519, 12 h max) with operator, player, jurisdiction, currency, game, build.
           content:
             application/json:
               schema:
@@ -140,6 +140,92 @@ paths:
                   gameSessionToken: { type: string }
                   expiresAt: { type: string, format: date-time }
         "410": { $ref: "#/components/responses/Problem" }
+  /v1/games/{gameCode}/builds/{version}:
+    get:
+      operationId: getBuild
+      summary: One build's manifest facts, including where its replay renderer lives (used by Catwalk).
+      security: [ { serviceMtls: [] } ]
+      parameters:
+        - { name: gameCode, in: path, required: true, schema: { type: string } }
+        - { name: version, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Build.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [gameCode, studioCode, version, assetBaseUrl, rtpBps]
+                properties:
+                  gameCode: { type: string }
+                  studioCode: { type: string }
+                  version: { type: string }
+                  assetBaseUrl: { type: string, format: uri }
+                  replayEntrypoint: { type: string, description: "Required for published slot builds (V002)." }
+                  mathModelSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+                  rtpBps: { type: integer }
+        "404": { $ref: "#/components/responses/Problem" }
+  /v1/studios/{studioCode}/signing-keys:
+    get:
+      operationId: listStudioSigningKeys
+      summary: Public Ed25519 keys a studio signs round outcomes with (JWKS), active and retired.
+      security: [ { serviceMtls: [] } ]
+      parameters:
+        - { name: studioCode, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: JWKS.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keys]
+                properties:
+                  keys: { type: array, items: { $ref: "#/components/schemas/Ed25519Jwk" } }
+  /v1/studios/{studioCode}/signing-keys/{keyId}:
+    put:
+      operationId: registerStudioSigningKey
+      summary: A studio registers a new round-signing public key (at most two active; keys are retired, never replaced).
+      security: [ { studioMtls: [] } ]
+      parameters:
+        - { name: studioCode, in: path, required: true, schema: { type: string } }
+        - { name: keyId, in: path, required: true, schema: { type: string, pattern: "^[A-Za-z0-9._-]{1,64}$" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Ed25519Jwk" }
+      responses:
+        "204": { description: Registered (or already registered with the same key). }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /v1/history-tokens:
+    post:
+      operationId: issueHistoryToken
+      summary: Operator asks for a short-lived token that lets the signed-in player read their own round history in Catwalk.
+      description: Issued to self-excluded and limited players too; reviewing past play is always allowed.
+      security: [ { operatorMtls: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [playerId]
+              additionalProperties: false
+              properties:
+                playerId: { type: string, format: uuid }
+      responses:
+        "201":
+          description: "JWT (EdDSA), audience catwalk, scope rounds:read, subject = playerId, op = the calling operator (from the mTLS identity), 60 min."
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, expiresAt]
+                properties:
+                  token: { type: string }
+                  expiresAt: { type: string, format: date-time }
   /v1/kill-switches:
     post:
       operationId: activateKillSwitch
@@ -204,6 +290,17 @@ components:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
   schemas:
+    Ed25519Jwk:
+      type: object
+      required: [kty, crv, x, kid]
+      additionalProperties: false
+      properties:
+        kty: { const: OKP }
+        crv: { const: Ed25519 }
+        x: { type: string, pattern: "^[A-Za-z0-9_-]{43}$" }
+        kid: { type: string }
+        use: { const: sig }
+        alg: { const: EdDSA }
     Problem:
       type: object
       required: [type, title, status]

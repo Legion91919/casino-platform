@@ -1,0 +1,8 @@
+{
+  "title": "Ember Anvil",
+  "fonts": [
+    ["@fontsource/big-shoulders-display", "big-shoulders-display-latin-800-normal.woff2"],
+    ["@fontsource/atkinson-hyperlegible", "atkinson-hyperlegible-latin-400-normal.woff2"],
+    ["@fontsource/atkinson-hyperlegible", "atkinson-hyperlegible-latin-700-normal.woff2"]
+  ]
+}

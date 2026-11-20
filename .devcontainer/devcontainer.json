@@ -6,15 +6,43 @@
   "features": {
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.12"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
     }
   },
   "forwardPorts": [
-    5432
+    5432,
+    7100,
+    7101,
+    7102,
+    7301,
+    7401
   ],
   "portsAttributes": {
     "5432": {
       "label": "PostgreSQL 16 (dev container service `db`)",
-      "onAutoForward": "notify"
+      "onAutoForward": "silent"
+    },
+    "7100": {
+      "label": "Slot floor: Kestrel demo lobby (open this)",
+      "onAutoForward": "openBrowser"
+    },
+    "7101": {
+      "label": "Dealer contract double",
+      "onAutoForward": "silent"
+    },
+    "7102": {
+      "label": "Cashier contract double",
+      "onAutoForward": "silent"
+    },
+    "7301": {
+      "label": "Ember Anvil game server",
+      "onAutoForward": "silent"
+    },
+    "7401": {
+      "label": "Catwalk round history",
+      "onAutoForward": "silent"
     }
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",

@@ -1,0 +1,28 @@
+{
+  "name": "casino-platform-node",
+  "private": true,
+  "description": "Node/TypeScript parts of the suite: the studio SDK, Ember Forge's Kiln slot framework and its two games, the Catwalk round-history service and the dev floor contract doubles.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "workspaces": [
+    "sdk/studio-sdk",
+    "studios/ember-forge/kiln",
+    "studios/ember-forge/ember-anvil",
+    "studios/ember-forge/rock-paper-scissors",
+    "services/catwalk",
+    "tools/dev-floor"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run typecheck && npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "floor": "node tools/dev-floor/src/run-floor.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/pg": "^8.15.0",
+    "typescript": "^5.9.0"
+  }
+}

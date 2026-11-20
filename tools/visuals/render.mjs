@@ -29,6 +29,9 @@ const diagrams = [
   { name: "bet-round", src: mermaidAfter("docs/DESIGN.md", "### 6.1 A full bet round") },
   { name: "data-flow", src: mermaidAfter("docs/DESIGN.md", "## 7. Data flow") },
   { name: "team-topology", src: mermaidAfter("docs/team-topology.md", "## Interaction modes") },
+  { name: "slot-publish", src: mermaidAfter("docs/DESIGN.md", "### 15.2 Publish") },
+  { name: "slot-play", src: mermaidAfter("docs/DESIGN.md", "### 15.3 Play") },
+  { name: "round-review", src: mermaidAfter("docs/DESIGN.md", "### 15.4 Review") },
 ];
 
 const config = {

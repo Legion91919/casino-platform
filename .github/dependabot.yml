@@ -5,6 +5,8 @@ version: 2
 updates:
   - package-ecosystem: "npm"
     directories:
+      - "/"              # npm workspaces: SDK, Kiln and both games, Catwalk, dev floor (one lockfile)
+      - "/demo"
       - "/tools/visuals"
     schedule:
       interval: "weekly"

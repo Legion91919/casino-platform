@@ -1,0 +1,20 @@
+{
+  "name": "@ember-forge/rock-paper-scissors",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Land of Rock Paper Scissors: a 5x3 slot by Ember Forge Studio (invented) on Kiln. Paper wraps rock, scissors cut paper, rock smashes scissors.",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\"",
+    "build": "node ../kiln/scripts/build-game.ts .",
+    "par": "node scripts/par-sheet.ts",
+    "start": "node src/server.ts"
+  },
+  "dependencies": {
+    "@ember-forge/kiln": "1.0.0"
+  },
+  "devDependencies": {
+    "@fontsource/lilita-one": "^5.2.0",
+    "@fontsource/atkinson-hyperlegible": "^5.2.0"
+  }
+}

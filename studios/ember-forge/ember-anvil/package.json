@@ -1,0 +1,20 @@
+{
+  "name": "@ember-forge/ember-anvil",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ember Anvil: a 5x3, 10-line slot by Ember Forge Studio (invented), built on Kiln and published onto the Casino Platform.",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\"",
+    "build": "node ../kiln/scripts/build-game.ts .",
+    "par": "node scripts/par-sheet.ts",
+    "start": "node src/server.ts"
+  },
+  "dependencies": {
+    "@ember-forge/kiln": "1.0.0"
+  },
+  "devDependencies": {
+    "@fontsource/big-shoulders-display": "^5.2.0",
+    "@fontsource/atkinson-hyperlegible": "^5.2.0"
+  }
+}

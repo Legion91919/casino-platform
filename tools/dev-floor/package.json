@@ -1,0 +1,9 @@
+{
+  "name": "@casino-platform/dev-floor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Contract doubles of Dealer (launch, tokens, studio keys) and Cashier (seamless wallet, BetSettled feed) for running the slot and Catwalk locally. Not production code.",
+  "scripts": { "test": "node --test \"test/**/*.test.ts\"" },
+  "dependencies": { "@casino-platform/studio-sdk": "0.1.0" }
+}

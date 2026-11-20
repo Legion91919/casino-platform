@@ -15,7 +15,7 @@ serves rows whose transaction is older than every in-flight one, so a slow commi
 | Event | Publisher | Consumers (and why) | Partition key |
 |---|---|---|---|
 | `BetPlaced` v1 | cashier | countroom (open exposure), pitboss (session activity for reality checks) | externalRoundId |
-| `BetSettled` v1 | cashier | countroom (bet facts, GGR), comps (wagering progress), pitboss (net-loss usage) | externalRoundId |
+| `BetSettled` v1 | cashier | countroom (bet facts, GGR), comps (wagering progress), pitboss (net-loss usage), catwalk (wallet check on each round in a player's history) | externalRoundId |
 | `RoundVoided` v1 | cashier | countroom (void facts), pitboss (refund net loss) | externalRoundId |
 | `SettlementReversed` v1 | cashier | countroom (restate the business day), comps (hold the award for review), pitboss (adjust loss usage) | externalRoundId |
 | `LimitBreached` v1 | pitboss | countroom (responsible-gambling intervention report), operators via webhook | playerId |
@@ -24,10 +24,18 @@ serves rows whose transaction is older than every in-flight one, so a slow commi
 | `GameKilled` v1 | dealer | comps (pause free spins on the game), countroom (incident annotation), cashier (void open rounds of the game after grace period) | gameCode |
 | `BonusAwarded` v1 | comps | countroom (bonus liability) | playerId |
 | `BonusCompleted` v1 | comps | countroom (bonus cost into NGR) | playerId |
+| `RoundOutcomeRecorded` v1 | studio game servers (signed) | catwalk (player round history and replay) | roundId |
 | `BonusExpired` v1 | comps | countroom (forfeited bonus); the balance itself is forfeited by Comps' synchronous call to Cashier first | playerId |
 
 Every event uses `envelope.v1.schema.json`: `eventId`, `eventType`, `schemaVersion`, `occurredAt`,
 `producer`, `operatorCode` (tenant), `partitionKey`, optional `traceparent`, and `data`.
+
+## Events from outside the platform
+Studio game servers are run by other companies, so their events cross a trust boundary. A studio
+signs `RoundOutcomeRecorded.data` with Ed25519 (canonical JSON: sorted keys, no whitespace, integers
+only) using a key it registered at Dealer (`PUT /v1/studios/{studioCode}/signing-keys/{kid}`).
+Catwalk verifies every round against those keys and quarantines anything that does not verify.
+The envelope's `producer` is `studio`; `data.studioCode` says which one.
 
 ## Rules for the data in events
 - **Money** is `{ "amountMinor": <integer>, "currency": "EUR" }`. Floats are rejected by the schema.

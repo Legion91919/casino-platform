@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your game history</title>
+  <link rel="stylesheet" href="/history.css">
+  <script type="module" src="/history.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Your game history</h1>
+      <p class="sub" id="who">Every round you played, exactly as the game decided it.</p>
+    </div>
+    <nav class="range" aria-label="Period">
+      <button type="button" data-range="1" aria-pressed="true">Today</button>
+      <button type="button" data-range="7" aria-pressed="false">7 days</button>
+      <button type="button" data-range="30" aria-pressed="false">30 days</button>
+    </nav>
+  </header>
+
+  <section class="summary" id="summary" aria-live="polite"></section>
+
+  <main class="split">
+    <section class="list" aria-labelledby="rounds-h">
+      <h2 id="rounds-h" class="visually-hidden">Rounds</h2>
+      <table>
+        <thead>
+          <tr><th scope="col">Played</th><th scope="col">Game</th><th scope="col" class="num">Stake</th><th scope="col" class="num">Win</th><th scope="col" class="num">Net</th><th scope="col">Wallet</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="empty" id="empty" hidden>No rounds in this period. Rounds appear here a second or two after you play.</p>
+      <button type="button" class="more" id="more" hidden>Show older rounds</button>
+    </section>
+
+    <section class="detail" id="detail" aria-labelledby="detail-h" tabindex="-1">
+      <div class="placeholder" id="placeholder">
+        <h2 id="detail-h">Pick a round</h2>
+        <p>You'll see the reels as they landed, every winning line, and a check that the game's own rules give the same win.</p>
+      </div>
+      <div id="round" hidden>
+        <div class="round-head">
+          <h2 id="round-title">Round</h2>
+          <button type="button" class="close" id="close">Back to list</button>
+        </div>
+        <div class="replay-wrap"><iframe id="replay" title="Replay of this round, drawn by the game" sandbox="allow-scripts allow-same-origin" referrerpolicy="no-referrer"></iframe></div>
+        <p class="seal" id="seal" role="status">Checking the result with the game's rules...</p>
+        <dl class="facts" id="facts"></dl>
+        <h3>How the win was made</h3>
+        <ul class="wins" id="wins"></ul>
+        <details class="tech">
+          <summary>Technical record</summary>
+          <dl id="tech"></dl>
+        </details>
+      </div>
+    </section>
+  </main>
+  <p class="error" id="error" role="alert" hidden></p>
+</body>
+</html>

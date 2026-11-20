@@ -5,7 +5,8 @@ studio, person and jurisdiction here is invented. Read time: about 15 minutes.
 
 Contents: 1 Brief · 2 Requirements · 3 Capacity · 4 Options · 5 Architecture · 6 Communication flows ·
 7 Data flow · 8 Data model · 9 Scaling path · 10 Failure modes · 11 Security, privacy and compliance ·
-12 Observability and incident drills · 13 Testing strategy and AI governance · 14 Interview questions
+12 Observability and incident drills · 13 Testing strategy and AI governance · 14 Interview questions ·
+15 A studio's slot on the platform, and players reviewing their rounds
 
 ---
 
@@ -513,3 +514,184 @@ proves it (for example Cashier AC2 "replay" = integration test + `02_idempotency
 **Assumptions to confirm with operators:** share of operators wanting pass-through vs hosted wallets; exact
 retention per jurisdiction; whether any jurisdiction requires a national self-exclusion register check at
 registration; studio ability to send time-ordered transaction ids (UUIDv7/ULID).
+
+---
+
+## 15. A studio's slot on the platform, and players reviewing their rounds
+
+The suite above is designed in SQL and contracts. This section is the part you can **run**: a studio
+(Ember Forge, invented) builds slots on its own framework, **Kiln**, publishes them through Dealer, a
+player plays them at an operator (Kestrel, invented) with money moving through Cashier's seamless
+wallet, and then reviews every round in **Catwalk**, the new round-history service. Two games are on
+the floor: **Ember Anvil** (no features, exact RTP) and **Land of Rock Paper Scissors** (paper wraps
+rock, scissors cut paper, rock smashes scissors: sticky wilds, free respins and multipliers).
+Decision records: suite ADR-0006, Kiln ADR-0001, Land of Rock Paper Scissors ADR-0001.
+
+### 15.1 What exists and who owns it
+| Part | Owner | Where | Stack | Proof |
+|---|---|---|---|---|
+| Kiln, the studio's slot framework | studio | `studios/ember-forge/kiln` | TypeScript, PixiJS 8, tween.js, esbuild, sharp | 26 tests: math engine (exact RTP = brute force, held wilds, respin cap, replay determinism), server kit (every wallet failure path, a feature round paid once, 10 concurrent retries on Postgres); 13 DB assertions on the shared game-server schema |
+| Ember Anvil (5x3, 10 lines, wild, scatter) | studio | `studios/ember-forge/ember-anvil` | Kiln config + art | exact RTP 96.39% over all 33.5M stop combinations, locked by a test; PAR sheet |
+| Land of Rock Paper Scissors (sticky wilds, respins, multipliers) | studio | `studios/ember-forge/rock-paper-scissors` | Kiln config + rules + presenter + art | 9 tests: each rule on scripted screens, combinations, respin cap, replay, declared RTP 95.65% within 4.5 standard errors of a fresh simulation |
+| Catwalk | team-catwalk | `services/catwalk` | Node 22, PostgreSQL 16 | 15 tests incl. IDOR and tampering, 19 DB assertions incl. row-level security |
+| Dealer V002 (replay rule, studio keys) | team-dealer | `services/dealer/db/migrations/V002__round_review.sql` | PostgreSQL 16 | 13 DB assertions |
+| Studio SDK | team-backstage | `sdk/studio-sdk` | TypeScript, `node:crypto` only | 9 tests incl. alg=none and key-substitution attacks |
+| Dev floor (Dealer and Cashier contract doubles, demo lobby) | team-backstage | `tools/dev-floor` | TypeScript | 4 contract tests through the game server's real HTTP adapters |
+
+The doubles exist because the .NET services are designed but not built yet; they implement only the
+contract the slot needs and are never deployed.
+
+### 15.1b Kiln in one picture
+```text
+game folder                          Kiln
+  src/game.ts   config + math  --> createLineGame --> playRound(nextStops)    server (RNG), replay (recorded), RTP (seeded)
+  src/rules.ts  FeatureRules   --^                    land -> transform -> pay -> respin while wilds are held
+  src/definition.ts + presenter --> startGame / startReplay: PixiJS reels, tween.js animation, HTML controls
+  art/*.png|svg                --> build-game: atlas + bundles + manifest (hashes, RTP, math hash, replay)
+  src/server.ts                --> runGameServer: launch, freeze-then-pay, resumer, signed outbox
+```
+A round with features is still **one paid round**: the paid spin and every free respin are drawn and
+frozen together before the win is credited, and the event carries each spin's stops (`outcome.steps`),
+so Catwalk's replay re-runs the whole round with the build's own rules.
+
+### 15.2 Publish: from the studio's CI to a launchable build
+```mermaid
+sequenceDiagram
+  participant CI as Studio CI
+  participant D as Dealer
+  participant L as Test lab
+  participant R as Release manager
+  CI->>CI: npm test, then npm run build (manifest with asset hashes, rtpBps 9639, mathModelSha256, replayEntrypoint)
+  CI->>D: PUT /v1/studios/ember-forge/signing-keys/{kid} (public key only)
+  CI->>D: POST /v1/games/ember-anvil/builds (manifest)
+  D->>D: V002 trigger refuses a slot without replayEntrypoint and mathModelSha256
+  L->>D: POST /v1/builds/{id}/certifications JUR-A (refused if RTP below the jurisdiction minimum)
+  R->>D: POST /v1/rollouts Kestrel 10 percent (refused without certification)
+  D-->>D: GameReleased into the outbox
+```
+
+### 15.3 Play: launch, spin, settle
+```mermaid
+sequenceDiagram
+  participant P as Player (browser)
+  participant O as Operator lobby
+  participant D as Dealer
+  participant G as Ember Anvil server
+  participant C as Cashier
+  P->>O: Play Ember Anvil
+  O->>D: POST /v1/launches (player, game, jurisdiction, currency)
+  D-->>O: launchUrl with a single-use token in the fragment
+  O->>P: game iframe (studio origin)
+  P->>G: POST /v1/sessions (launch token)
+  G->>D: POST /v1/launch-sessions/redeem
+  D-->>G: game-session JWT (EdDSA, aud game:ember-anvil)
+  G-->>P: opaque session token (the JWT never reaches the browser)
+  P->>G: POST /v1/spins (roundId chosen by the client, line bet)
+  G->>G: open round, mint UUIDv7 wallet txn ids
+  G->>C: POST /v1/wallet/debit (stake txn id)
+  C-->>G: accepted, balance
+  G->>G: draw 5 stops (CSPRNG), evaluate, FREEZE outcome
+  G->>C: POST /v1/wallet/credit (win txn id, closeRound)
+  C-->>G: accepted, balance
+  G->>G: settle and write signed RoundOutcomeRecorded to the outbox (one transaction)
+  G-->>P: stops, grid, wins, balance
+```
+
+### 15.4 Review: a player looks back at a round
+```mermaid
+sequenceDiagram
+  participant P as Player
+  participant O as Operator lobby
+  participant D as Dealer
+  participant K as Catwalk
+  participant G as Game server feed
+  participant C as Cashier feed
+  participant R as Replay renderer (studio origin)
+  loop every 500 ms
+    K->>G: GET /v1/events?after=cursor
+    K->>K: verify Ed25519 signature with the studio key from Dealer, else quarantine
+    K->>C: GET /v1/events?after=cursor (BetSettled)
+  end
+  P->>O: My game history (or the History button in the game)
+  O->>D: POST /v1/history-tokens (player)
+  D-->>O: JWT aud catwalk, scope rounds:read, 60 min
+  O->>K: open /history with the token in the fragment
+  K->>K: SET LOCAL ROLE catwalk_reader and the verified player, so RLS filters every row
+  K-->>P: rounds with wallet check: confirmed, mismatch or pending
+  P->>K: open one round
+  K->>R: sandboxed cross-origin iframe, round sent by postMessage
+  R->>R: check mathModelSha256, re-compute the win from the stops with the build's own rules
+  R-->>K: matches true or false
+  K-->>P: reels as they landed, winning lines, "Checked" seal
+```
+
+### 15.5 When things go wrong
+| What happens | What the player sees | Why it is safe |
+|---|---|---|
+| Wallet down before the stake | "No stake was taken. Try again." | The server rolls back the stake txn id; Cashier tombstones it so a late debit can never land |
+| Wallet drops after the stake | "Your result is saved and will be paid." The client retries the same roundId | The outcome is frozen first; a retry or the background resumer pays exactly that result; the DB trigger refuses any change to a decided outcome |
+| Server crashes between debit and decision | The round finishes on retry or shows in history | Resumer rolls back `opened` rounds (stake unknown) and settles `decided` ones |
+| Ten concurrent retries of one round | One result | Conditional state updates; one debit (Cashier idempotency), one draw, one event (tested on Postgres) |
+| Another player guesses a roundId | 409 at the game server, 404 in Catwalk, same as a round that doesn't exist | Ownership check on the session; RLS in Catwalk |
+| An event is altered in transit or by an insider | Nothing: it never reaches history | Signature over canonical JSON fails; event quarantined for on-call |
+| Wallet paid a different amount from the game result | "Check needed" on that round | Two append-only sources joined by a view; neither side can be edited to hide it |
+| Studio rotates its signing key | Nothing | Two active keys during rotation; retired keys stay verifiable for old rounds |
+
+### 15.6 Data
+| Database (owner) | Table | Key rule |
+|---|---|---|
+| `ember_anvil` (studio) | `game_session` | stores a hash of the session token only |
+| | `round` | forward-only states; stake = 10 x line bet on the ladder; decided outcome frozen; never deleted |
+| | `outbox` | append-only; `(tx_id, position)` cursor (ADR-0003) |
+| `catwalk` | `round_record` | monthly partitions, append-only, signature kept with the row, RLS by operator and player |
+| | `wallet_settlement` | Cashier's view of the round, append-only, RLS |
+| | `round_view` | `security_invoker`, derives confirmed / mismatch / pending |
+| | `inbox`, `consumer_checkpoint`, `quarantine` | exactly-once effect; failed events held for on-call |
+| `dealer` (V002) | `studio_signing_key` | public Ed25519 only (a JWK with `d` is refused), two active max, retire not delete |
+
+### 15.7 Why the math can be trusted
+- The RNG's only output is five stop indexes (`crypto.randomInt`, no modulo bias). Everything else is
+  derived by one pure function used by the server, the replay renderer and the RTP calculation.
+- RTP is **computed, not estimated**: line pays by symbol-count enumeration (9^5 combinations weighted by
+  strip counts, valid because stops are uniform and reels independent), scatter pays by convolving
+  per-reel window counts. A test proves the method equals brute force over a full cycle of small strips.
+- The declared RTP (9639 bps) is locked by a test and travels in the manifest; Dealer's certification
+  trigger refuses it in any jurisdiction with a higher minimum.
+- `mathModelSha256` identifies strips, lines and pays; the replay renderer refuses to re-check a round
+  played on a different model rather than give a misleading answer.
+
+### 15.8 Security notes (STRIDE, short)
+| Threat | Control |
+|---|---|
+| Spoofed player at the game server | Single-use launch token redeemed server-side; game-session JWT verified against Dealer's JWKS; opaque, hashed session token in the browser |
+| Spoofed studio events in Catwalk | Ed25519 signatures with keys registered at Dealer; unknown key ids refetch at most once per 10 s per studio |
+| Tampered history | Append-only tables, signature stored with the row, wallet cross-check |
+| Information disclosure (IDOR) | RLS in PostgreSQL, fails closed with no player set; identical 404s |
+| JWT algorithm confusion | Only `EdDSA` accepted; `none` and `HS256` rejected before key lookup (tested) |
+| Clickjacking and framing | `frame-ancestors` per page: game for operator lobbies, replay for Catwalk and its embedding lobbies |
+| Replay iframe abuse | Separate origin, `sandbox="allow-scripts allow-same-origin"` (safe only because the origins differ), postMessage origin and source checks both ways |
+| Token leakage | Tokens travel in URL fragments (never sent to servers or logs) and are removed from the address bar immediately |
+
+### 15.9 More interview questions
+11. **Why does the game server freeze the outcome before paying?** If it paid first and crashed, a retry
+    would have to decide again, and a player could be paid for one result and shown another. Deciding,
+    persisting, then crediting with a stored transaction id makes the payout retryable and the result unique.
+12. **Why sign outcomes if the feed is already authenticated?** Transport auth says who sent the page;
+    the signature says the content is what the studio's certified server produced, and it stays
+    verifiable for years in Catwalk, after any number of copies and migrations.
+13. **Why not let Catwalk draw the reels itself?** Then the platform would carry a second copy of every
+    game's rules and art, and the check would be the platform agreeing with itself. The build's own
+    renderer re-computing from the stops is an independent check by the certified code.
+14. **How do you stop one player reading another's history?** The token says who you are; PostgreSQL
+    enforces it. Reads run as a role whose RLS policies need the verified player and operator in
+    transaction settings; nothing set means nothing visible, and the view is `security_invoker` so it
+    cannot bypass the policy.
+15. **Why are sticky wilds free respins inside one round rather than carried into the next paid spin?**
+    Carrying them makes rounds depend on each other: the next stake buys a better game, a player can walk
+    away from a feature they earned, and history and certification need state across rounds. Respins in
+    the same round give the same feel with every round self-contained and replayable from its stops.
+16. **How do you know the RTP of a game with sticky wilds?** Not by enumeration: held positions make each
+    spin depend on the last. A seeded simulation of 5 million rounds gives 95.65% with a standard error of
+    0.09 points; the declared figure is that, and the tests re-check it with a different seed every run.
+    (The first declared figure, 96.00%, came from smaller samples and was 4 standard errors off; the large
+    run caught it before anything was published.)

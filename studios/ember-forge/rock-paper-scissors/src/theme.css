@@ -1,0 +1,11 @@
+@font-face { font-family: "Lilita One"; src: url(fonts/lilita-one-latin-400-normal.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url(fonts/atkinson-hyperlegible-latin-400-normal.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url(fonts/atkinson-hyperlegible-latin-700-normal.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+:root {
+  --k-bg: #f2e6d0; --k-text: #2b2a33; --k-muted: #5d5547; --k-accent: #e4572e; --k-warn: #b3381b;
+  --k-btn: #fffaf0; --k-btn-edge: #c9a27a; --k-spin-a: #ffe08a; --k-spin-b: #e4572e; --k-spin-ink: #2b2a33;
+  --k-display: "Lilita One", sans-serif; --k-body: "Atkinson Hyperlegible", system-ui, sans-serif;
+}
+.kiln-title { color: #2b2a33; text-shadow: 3px 3px 0 #ffc914; }
+.kiln-hud strong { color: #2b2a33; }
+.kiln-hud .kiln-spin { color: #2b2a33; box-shadow: 0 4px 0 #2b2a33; border: 3px solid #2b2a33; }

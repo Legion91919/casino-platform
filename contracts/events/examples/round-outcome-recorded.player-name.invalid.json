@@ -1,0 +1,134 @@
+{
+  "eventId": "5b7f1e8a-2c3d-4e5f-8a9b-0c1d2e3f4a5b",
+  "eventType": "RoundOutcomeRecorded",
+  "schemaVersion": 1,
+  "occurredAt": "2026-11-20T20:00:00.000Z",
+  "producer": "studio",
+  "operatorCode": "kestrel",
+  "partitionKey": "994cb5f7-e016-4e0e-ad8e-f507a8f97147",
+  "data": {
+    "roundId": "994cb5f7-e016-4e0e-ad8e-f507a8f97147",
+    "studioCode": "ember-forge",
+    "gameCode": "ember-anvil",
+    "buildVersion": "1.0.0",
+    "mathModelSha256": "852bbfc68813f433f648b33d1391446f2fb4f13e1f5c1294b8a3d3307b7a042b",
+    "jurisdictionCode": "JUR-A",
+    "playerId": "8a4b2f5e-3c1d-4e6f-9a7b-1c2d3e4f5a6b",
+    "currency": "EUR",
+    "stake": {
+      "amountMinor": 50,
+      "currency": "EUR"
+    },
+    "win": {
+      "amountMinor": 175,
+      "currency": "EUR"
+    },
+    "balanceAfter": {
+      "amountMinor": 25050,
+      "currency": "EUR"
+    },
+    "outcome": {
+      "stops": [
+        5,
+        2,
+        21,
+        27,
+        2
+      ],
+      "grid": [
+        [
+          "rivet",
+          "ingot",
+          "tongs"
+        ],
+        [
+          "jade",
+          "ingot",
+          "ember"
+        ],
+        [
+          "hammer",
+          "rivet",
+          "ember"
+        ],
+        [
+          "jade",
+          "rivet",
+          "ingot"
+        ],
+        [
+          "ingot",
+          "ruby",
+          "rivet"
+        ]
+      ],
+      "lineWins": [
+        {
+          "line": 3,
+          "symbol": "tongs",
+          "count": 3,
+          "positions": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "win": {
+            "amountMinor": 50,
+            "currency": "EUR"
+          }
+        },
+        {
+          "line": 9,
+          "symbol": "ingot",
+          "count": 4,
+          "positions": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              3,
+              2
+            ]
+          ],
+          "win": {
+            "amountMinor": 125,
+            "currency": "EUR"
+          }
+        }
+      ],
+      "scatter": {
+        "count": 0,
+        "win": {
+          "amountMinor": 0,
+          "currency": "EUR"
+        }
+      }
+    },
+    "playedAt": "2026-11-20T20:00:00.000Z",
+    "signature": {
+      "alg": "Ed25519",
+      "keyId": "ember-forge-2026-11",
+      "value": "8JPwGERn5IJqGfX9SREpcwWS7GQOz-8vTOAJSydHiLXQkbzIgZNh7iQQDuEUta8UgoKAZJIXMzgkbNSiW0DUCg"
+    },
+    "playerName": "A Player"
+  },
+  "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+}

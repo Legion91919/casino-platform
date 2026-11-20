@@ -1,0 +1,9 @@
+@font-face { font-family: "Big Shoulders Display"; src: url(fonts/big-shoulders-display-latin-800-normal.woff2) format("woff2"); font-weight: 800; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url(fonts/atkinson-hyperlegible-latin-400-normal.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url(fonts/atkinson-hyperlegible-latin-700-normal.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+:root {
+  --k-bg: #2e2a27; --k-text: #f3eee6; --k-muted: #b8afa3; --k-accent: #e8d49a; --k-warn: #ffb48a;
+  --k-btn: #3a3532; --k-btn-edge: #564e48; --k-spin-a: #ffe7a3; --k-spin-b: #c4612a; --k-spin-ink: #2e1a0c;
+  --k-display: "Big Shoulders Display", sans-serif; --k-body: "Atkinson Hyperlegible", system-ui, sans-serif;
+}
+.kiln-title { text-transform: uppercase; background: linear-gradient(90deg, #e8d49a, #c08a4b 30%, #7a4e8f 65%, #3d6a9e); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; }

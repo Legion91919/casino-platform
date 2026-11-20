@@ -48,6 +48,47 @@ flowchart LR
 | [`backstage`](services/backstage) | team-backstage | golden paths, catalogue, scorecards, AI governance | Layered monolith → Modular monolith |
 
 
+## Play it: a studio's slot framework, two games, and players reviewing their rounds
+
+**Kiln** is Ember Forge Studio's (invented) slot framework: a math engine with feature hooks and
+exact/simulated RTP, a game server kit on the platform's seamless wallet, a **PixiJS + tween.js** client,
+sprite-atlas baking and a replay mode. Two games are built on it and published through Dealer:
+
+- **Ember Anvil**: forge-themed, no features, RTP exactly 96.39% (computed over all 33.5M stop combinations).
+- **Land of Rock Paper Scissors**: *paper wraps rock* (sticky wild, 1 free respin), *scissors cut paper* (two sticky wilds, 2 respins), *rock smashes scissors* (+1 multiplier per pair, up to x5). RTP 95.65% by 5M-round simulation.
+
+A player plays them at Kestrel Gaming (invented), then reviews every round in **Catwalk**: the reels as
+they landed, replayed by the game's own certified renderer, every winning line and respin, a check that
+the game's rules give the same win, and whether the wallet paid exactly that.
+
+![Kestrel demo lobby: Land of Rock Paper Scissors with a wrap and sticky wild respin, then the player's history in Catwalk replaying a round with a "Checked" seal](docs/media/slot/demo.gif)
+
+| | |
+|---|---|
+| ![Land of Rock Paper Scissors after a feature](docs/media/slot/rps-feature.png) | ![Catwalk: round list with wallet checks and the replay of one round](docs/media/slot/round-history.png) |
+
+How it hangs together:
+- **One round loop for everything:** the server (RNG stops), the replay (recorded stops) and RTP (seeded stops) run the same code, so what is certified is what runs.
+- **The game server decides the whole round, freezes it, then pays.** A wallet outage delays a payout but can never cause a re-spin.
+- **Rounds are signed by the studio** (Ed25519, key registered at Dealer). Catwalk quarantines anything that doesn't verify.
+- **Two sources, compared:** the game's signed outcome and Cashier's `BetSettled`. A round is *paid*, *check needed* or *waiting*.
+- **A player only ever sees their own rounds**, enforced by PostgreSQL row-level security rather than by the API.
+- **Dealer won't publish a slot without a replay renderer** and a math model hash (migration V002).
+
+Flows, failure table, data and threat notes: [DESIGN.md section 15](docs/DESIGN.md#15-a-studios-slot-on-the-platform-and-players-reviewing-their-rounds). Decision: [ADR-0006](.agentic/decisions/0006-round-review-signed-outcomes.md).
+
+**Run it** (Codespaces or the dev container: Postgres is already there):
+```bash
+npm ci && npm run floor                 # then open the lobby on port 7100
+# on a laptop without the dev container:
+npm ci && tools/with-postgres.sh npm run floor
+```
+In Codespaces the pages embed each other across forwarded ports (lobby, game, Catwalk, replay). If a frame
+stays blank, the browser is asking for a separate GitHub sign-in per port: open each port once from the
+Ports tab, or set ports 7100 to 7401 to Public there (demo data only; your choice).
+
+The lobby's "Test the failure paths" panel switches the wallet off before or after the stake, or makes it pay the wrong amount, so you can watch each safety rule work.
+
 ## The system at a glance
 
 **Context map**: who calls whom, synchronously (solid) or through outbox events (dotted). [SVG](docs/media/context-map.svg)
@@ -64,7 +105,7 @@ flowchart LR
 
 </details>
 
-**Every migration and DB test against real PostgreSQL 16**: `tools/db-verify.sh` starts a throwaway server, applies all six services' migrations and runs 175 assertions.
+**Every migration and DB test against real PostgreSQL 16**: `tools/db-verify.sh` starts a throwaway server, applies all six services' migrations and runs every assertion (175 at the time of this capture; 220 now).
 
 ![tools/db-verify.sh output: ten DB test files ok, 175 assertions passed, exit code 0](docs/media/db-verify.png)
 
@@ -79,22 +120,29 @@ The dev container installs the SDKs, restores packages and runs every test once 
 | What | Command | Port |
 |---|---|---|
 | PostgreSQL 16 (dev container service `db`) | `psql -h db -U postgres   # password: postgres` | 5432 |
+| The slot floor: demo lobby, both games, Catwalk | `npm run floor` | 7100 (lobby), 7301, 7302, 7401 |
 | All tests (same as CI) | `scripts/test-all.sh` | - |
 
 ## What is verified
 ```bash
-tools/db-verify.sh                  # real PostgreSQL 16: 6 databases, 58 tables, 175 assertions (all pass)
-python3 tools/validate-contracts.py # 11 event schemas + envelope, valid/invalid examples, 6 OpenAPI 3.1 files, ownership
+tools/db-verify.sh                  # real PostgreSQL 16: 8 databases (7 services + the sample studio), 220 assertions
+python3 tools/validate-contracts.py # 12 event schemas + envelope, valid/invalid examples, 7 OpenAPI 3.1 files, ownership
+tools/with-postgres.sh npm test     # TypeScript typecheck + 67 tests: Kiln, both games, Catwalk, SDK, dev floor
 ```
 
 ## Map
 | Path | What |
 |---|---|
-| `.agentic/` | suite baton: product brief, context map, ADRs 0001–0005, backlog, quality, runbook |
+| `.agentic/` | suite baton: product brief, context map, ADRs 0001–0006, backlog, quality, runbook |
 | `services/<name>/` | README, `.agentic/` (product, ADR-0001, backlog slice 1), `api/openapi.yaml`, `db/migrations/`, `db/tests/` |
+| `services/catwalk/` | round history for players: runnable (Node/TypeScript), with its page in `ui/` |
+| `studios/ember-forge/kiln/` | Kiln, the studio's slot framework (math, server kit, PixiJS client, build, replay) |
+| `studios/ember-forge/ember-anvil/`, `rock-paper-scissors/` | the two games built on Kiln: config, rules, presenter, art, PAR sheets |
+| `sdk/studio-sdk/` | what the platform gives studios: canonical JSON, Ed25519 signatures, token checks |
+| `tools/dev-floor/` | contract doubles of Dealer and Cashier plus a demo lobby, for `npm run floor` (never deployed) |
 | `contracts/` | event JSON Schemas, examples, publisher/consumer table, versioning rules |
-| `docs/DESIGN.md` | suite design dossier (14 sections, flows, capacity, STRIDE, drills, Q&A) |
-| `docs/team-topology.md` | six teams, interaction modes, cognitive load and autonomy |
+| `docs/DESIGN.md` | suite design dossier (15 sections, flows, capacity, STRIDE, drills, Q&A) |
+| `docs/team-topology.md` | seven teams, interaction modes, cognitive load and autonomy |
 | `docker-compose.yml` | PostgreSQL 16 for Cashier (dedicated) and the other five databases (shared server) |
 | `tools/` | `db-verify.sh`, `validate-contracts.py`, SQL test helpers, privacy guard |
 

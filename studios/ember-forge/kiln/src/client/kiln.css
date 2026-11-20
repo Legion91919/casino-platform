@@ -1,0 +1,38 @@
+/* Kiln base layout. Each game sets the variables in its own theme.css. */
+:root { --k-bg: #222; --k-text: #f3eee6; --k-muted: #b8afa3; --k-accent: #e8d49a; --k-warn: #ffb48a; --k-btn: #333; --k-btn-edge: #555; --k-spin-a: #ffe7a3; --k-spin-b: #c4612a; --k-spin-ink: #2e1a0c; --k-display: system-ui; --k-body: system-ui; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--k-bg); color: var(--k-text); font-family: var(--k-body); }
+:focus-visible { outline: 3px solid var(--k-accent); outline-offset: 3px; }
+.kiln { position: relative; height: 100%; display: grid; grid-template-rows: 1fr auto auto; overflow: hidden; }
+.kiln-canvas { position: relative; min-height: 0; }
+.kiln-canvas canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.kiln-title { position: absolute; top: 10px; left: 18px; margin: 0; font-family: var(--k-display); font-size: clamp(22px, 3.4vw, 38px); line-height: 1; color: var(--k-accent); text-shadow: 0 2px 0 rgba(0,0,0,.45); pointer-events: none; }
+.kiln-status { margin: 0; padding: 6px 18px 0; min-height: 1.9em; color: var(--k-muted); text-align: center; }
+.kiln-status[data-tone="win"] { color: var(--k-accent); font-weight: 700; }
+.kiln-status[data-tone="warn"] { color: var(--k-warn); }
+.kiln-hud { display: grid; grid-template-columns: 1fr auto auto 1fr; align-items: center; gap: 14px; padding: 8px 18px 14px; }
+.kiln-hud p { margin: 0; color: var(--k-muted); }
+.kiln-hud strong { color: var(--k-text); font-size: 20px; font-variant-numeric: tabular-nums; margin-left: 6px; }
+.kiln-bet { display: flex; align-items: center; gap: 8px; }
+.kiln-bet p { min-width: 104px; text-align: center; }
+.kiln-hud button, .kiln-again { font: inherit; cursor: pointer; background: var(--k-btn); color: var(--k-text); border: 1px solid var(--k-btn-edge); border-radius: 10px; min-width: 44px; min-height: 44px; padding: 8px 14px; }
+.kiln-hud button:disabled { opacity: .45; cursor: not-allowed; }
+.kiln-side { display: flex; justify-content: end; gap: 8px; }
+.kiln-hud .kiln-spin { min-width: 160px; min-height: 60px; border-radius: 999px; border: 0; font-family: var(--k-display); font-size: 28px; letter-spacing: .05em; text-transform: uppercase; color: var(--k-spin-ink); background: radial-gradient(circle at 50% 35%, var(--k-spin-a), var(--k-spin-b)); box-shadow: 0 4px 0 rgba(0,0,0,.45); }
+.kiln-hud .kiln-spin:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.45); }
+dialog { max-width: 560px; width: calc(100% - 24px); background: var(--k-btn); color: var(--k-text); border: 1px solid var(--k-btn-edge); border-radius: 14px; padding: 20px; }
+dialog::backdrop { background: rgba(0,0,0,.6); }
+dialog h2 { margin-top: 0; font-family: var(--k-display); }
+.kiln-rule-list { padding-left: 18px; color: var(--k-muted); }
+dialog table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+dialog th, dialog td { padding: 6px; border-bottom: 1px solid var(--k-btn-edge); text-align: right; }
+dialog th[scope="row"] { text-align: left; font-weight: 400; }
+dialog button { margin-top: 12px; background: var(--k-accent); color: var(--k-spin-ink); border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 700; cursor: pointer; }
+.kiln-replay { grid-template-rows: 1fr auto; }
+.kiln-caption { margin: 0; padding: 6px 12px 8px; font-size: 13px; color: var(--k-muted); }
+.kiln-again { position: absolute; right: 10px; top: 10px; min-height: 36px; padding: 4px 12px; font-size: 13px; }
+@media (max-width: 640px) {
+  .kiln-hud { grid-template-columns: 1fr 1fr; }
+  .kiln-hud .kiln-spin { grid-column: 1 / -1; grid-row: 1; width: 100%; }
+  .kiln-balance { grid-column: 1 / -1; text-align: center; }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@ember-forge/kiln",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Kiln: Ember Forge Studio's slot framework. Math engine with feature hooks and exact/simulated RTP, a game server kit on the Casino Platform's wallet, a PixiJS + tween.js client, sprite-atlas baking and a replay mode for Catwalk.",
+  "exports": {
+    "./math": "./src/math/index.ts",
+    "./math/rtp": "./src/math/rtp.ts",
+    "./math/hash": "./src/math/hash.ts",
+    "./math/crypto-rng": "./src/math/crypto-rng.ts",
+    "./server": "./src/server/run-game.ts",
+    "./server/*": "./src/server/*.ts",
+    "./client": "./src/client/index.ts",
+    "./tools/*": "./scripts/*.ts"
+  },
+  "scripts": { "test": "node --test \"test/**/*.test.ts\"" },
+  "dependencies": {
+    "@casino-platform/studio-sdk": "0.1.0",
+    "@tweenjs/tween.js": "25.0.0",
+    "pg": "^8.16.0",
+    "pixi.js": "8.23.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "sharp": "0.35.5"
+  }
+}

@@ -1,6 +1,6 @@
 # Team topology
 
-Six notional teams (all invented), each owning one service end to end: code, database, on-call,
+Seven notional teams (all invented), each owning one service end to end: code, database, on-call,
 `.agentic/` baton and its slice of the contracts. Team types follow the four common team types
 (stream-aligned, platform, enabling, complicated-subsystem) and three interaction modes
 (collaboration, X-as-a-service, facilitating).
@@ -13,10 +13,12 @@ Six notional teams (all invented), each owning one service end to end: code, dat
 | team-dealer | stream-aligned (studio and operator journey) | 5 | `services/dealer` | builds, certifications, rollouts, launches, kill switch, JWKS, event feed | 24/7, tier 1 |
 | team-comps | stream-aligned (operator CRM journey) | 4 | `services/comps` | campaigns, awards, event feed | business hours + escalation |
 | team-countroom | stream-aligned (finance and compliance journey) | 4 | `services/countroom` | reports, exports, ingestion status | business hours; 05:00 local report watch |
+| team-catwalk | stream-aligned (player journey after play) | 3 | `services/catwalk` | player round history API and page; consumes studio round feeds and Cashier settlements | business hours + mismatch alerts |
 | team-backstage | platform | 4 | `services/backstage`, `tools/`, golden-path templates, CI | portal, templates, scorecards, test harness (`tools/sql/test_helpers.sql`, `tools/db-verify.sh`) | business hours |
 
 Studios (Ember Forge, Tidewater Studio, Quillon Games) are external stream-aligned teams: they consume
-Dealer and Cashier as a service and Backstage's `game-server-adapter` template.
+Dealer and Cashier as a service, the studio SDK (`sdk/studio-sdk`) and Backstage's `game-server-adapter`
+template. `studios/ember-forge/ember-anvil` is a complete sample studio game built that way.
 
 ## Interaction modes
 ```mermaid
