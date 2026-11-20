@@ -47,6 +47,18 @@ flowchart LR
 | [`countroom`](services/countroom) | team-countroom | bet facts, GGR/NGR, regulator exports, retention | Clean Architecture → Microservices |
 | [`backstage`](services/backstage) | team-backstage | golden paths, catalogue, scorecards, AI governance | Layered monolith → Modular monolith |
 
+
+## Run it in GitHub Codespaces
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Legion91919/casino-platform?quickstart=1)
+
+The dev container installs the SDKs, restores packages and runs every test once on first start. The same setup works locally with VS Code's Dev Containers extension.
+
+| What | Command | Port |
+|---|---|---|
+| PostgreSQL 16 (dev container service `db`) | `psql -h db -U postgres   # password: postgres` | 5432 |
+| All tests (same as CI) | `scripts/test-all.sh` | - |
+
 ## What is verified
 ```bash
 tools/db-verify.sh                  # real PostgreSQL 16: 6 databases, 58 tables, 175 assertions (all pass)
