@@ -3,5 +3,5 @@
   "private": true,
   "type": "module",
   "description": "Renders the design diagrams to SVG/PNG, the bet-round GIF and the db-verify screenshot.",
-  "devDependencies": { "playwright": "1.63.0", "mermaid": "11.12.1" }
+  "devDependencies": { "playwright": "1.65.1", "mermaid": "11.12.1" }
 }
