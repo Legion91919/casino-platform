@@ -21,7 +21,7 @@
     "floor": "node tools/dev-floor/src/run-floor.ts"
   },
   "devDependencies": {
-    "@types/node": "^22.18.0",
+    "@types/node": "^26.6.6",
     "@types/pg": "^8.15.0",
     "typescript": "^5.9.0"
   }
